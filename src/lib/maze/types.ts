@@ -56,5 +56,6 @@ export interface ExportedLevel {
 export interface SavedLevel {
   id: string;
   savedAt: number;
+  status?: "draft" | "ready";
   data: ExportedLevel;
 }
