@@ -120,13 +120,14 @@ export function PraemBuilder() {
 
       // Awaiting reentry pick for a pending door
       if (pendingDoor?.awaitingReentry) {
-        setPendingDoor({ ...pendingDoor, awaitingReentry: false });
+        const pd = pendingDoor;
+        setPendingDoor(null);
         setCells((prev) => {
           const next = prev.slice();
-          next[pendingDoor.row * size + pendingDoor.col] = {
+          next[pd.row * size + pd.col] = {
             type: "DOOR_TO_ROOM",
             door: {
-              roomId: pendingDoor.roomId,
+              roomId: pd.roomId,
               reentry: { col, row },
             },
           };
