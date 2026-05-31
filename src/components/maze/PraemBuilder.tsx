@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { buildUlamData } from "@/lib/maze/ulam";
-import { generateMaze, PRESETS } from "@/lib/maze/generator";
+import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells } from "@/lib/maze/fragments";
 import {
   exportLevel,
@@ -211,9 +211,11 @@ export function PraemBuilder() {
   };
 
   const suggestFragments = () => {
-    const picks = suggestFragmentCells(ulam, numFragments);
+    const origin = findOrigin(cells, size);
+    const reach = origin ? computeReachable(cells, size, origin) : undefined;
+    const picks = suggestFragmentCells(ulam, numFragments, reach);
     if (picks.length === 0) {
-      setFlash({ msg: "No prime cells available.", tone: "warn" });
+      setFlash({ msg: "No reachable prime cells available.", tone: "warn" });
       return;
     }
     setCells((prev) => {
