@@ -6,10 +6,15 @@ import { suggestFragmentCells } from "@/lib/maze/fragments";
 import {
   exportLevel,
   importLevel,
-  loadLibrary,
-  saveLibrary,
   downloadJson,
 } from "@/lib/maze/storage";
+import {
+  listBuilderLevels,
+  upsertBuilderLevel,
+  deleteBuilderLevel,
+  publishLevel,
+  type LevelStatus,
+} from "@/lib/maze/supabaseLibrary";
 import type {
   CellState,
   CellType,
@@ -75,13 +80,28 @@ export function PraemBuilder() {
   const [pendingDoor, setPendingDoor] = useState<PendingDoor | null>(null);
   const [pendingNpc, setPendingNpc] = useState<PendingNpc | null>(null);
   const [manuallyEdited, setManuallyEdited] = useState(false);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [status, setStatus] = useState<LevelStatus>("draft");
+  const [rotation, setRotation] = useState<0 | 1 | 3>(0); // 0=Purple, 1=Amber CCW, 3=Teal CW
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLibrary(loadLibrary());
+    refreshLibrary();
   }, []);
+
+  const refreshLibrary = async () => {
+    try {
+      const lib = await listBuilderLevels();
+      setLibrary(lib);
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Failed to load library.", tone: "warn" });
+    }
+  };
 
   useEffect(() => {
     if (!flash) return;
@@ -223,19 +243,25 @@ export function PraemBuilder() {
     setPendingDoor(null);
     setPendingNpc(null);
     setHighlight(null);
+    setCurrentId(null);
+    setStatus("draft");
   };
 
-  const saveToLibrary = () => {
-    const data = exportLevel(cells, ulam, meta);
-    const lib = loadLibrary();
-    const id = `${meta.levelName}__${meta.levelNumber}`;
-    const existing = lib.findIndex((l) => l.id === id);
-    const entry: SavedLevel = { id, savedAt: Date.now(), data };
-    if (existing >= 0) lib[existing] = entry;
-    else lib.push(entry);
-    saveLibrary(lib);
-    setLibrary(lib);
-    setFlash({ msg: `Saved "${meta.levelName}" to library.`, tone: "info" });
+  const saveToLibrary = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const data = exportLevel(cells, ulam, meta);
+      const id = await upsertBuilderLevel({ id: currentId, data, status });
+      setCurrentId(id);
+      await refreshLibrary();
+      setFlash({ msg: `Saved "${meta.levelName}".`, tone: "info" });
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Save failed.", tone: "warn" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadFromLibrary = (sl: SavedLevel) => {
@@ -247,13 +273,42 @@ export function PraemBuilder() {
     setPendingDoor(null);
     setPendingNpc(null);
     setHighlight(null);
+    setCurrentId(sl.id);
+    setStatus((sl.status as LevelStatus) ?? "draft");
   };
 
-  const deleteFromLibrary = (id: string) => {
+  const deleteFromLibrary = async (id: string) => {
     if (!confirm("Delete this saved level?")) return;
-    const lib = loadLibrary().filter((l) => l.id !== id);
-    saveLibrary(lib);
-    setLibrary(lib);
+    try {
+      await deleteBuilderLevel(id);
+      if (currentId === id) setCurrentId(null);
+      await refreshLibrary();
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Delete failed.", tone: "warn" });
+    }
+  };
+
+  const publishToGame = async () => {
+    if (publishing) return;
+    if (meta.levelNumber == null || Number.isNaN(meta.levelNumber) || meta.levelNumber <= 0) {
+      setFlash({ msg: "Level number is required to publish.", tone: "warn" });
+      return;
+    }
+    if (!confirm(`Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
+      return;
+    }
+    setPublishing(true);
+    try {
+      const data = exportLevel(cells, ulam, meta);
+      await publishLevel(data);
+      setFlash({ msg: `Published Level ${meta.levelNumber} to the game.`, tone: "info" });
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Publish failed.", tone: "warn" });
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const exportJson = () => {
@@ -273,6 +328,8 @@ export function PraemBuilder() {
         setMeta(m);
         setManuallyEdited(false);
         setHighlight(null);
+        setCurrentId(null);
+        setStatus("draft");
         setFlash({ msg: `Imported "${m.levelName}".`, tone: "info" });
       } catch (err) {
         console.error(err);
@@ -356,13 +413,28 @@ export function PraemBuilder() {
           {library.map((sl) => (
             <div
               key={sl.id}
-              className="group mb-1 flex items-center justify-between rounded-md border border-transparent px-2 py-2 hover:border-border hover:bg-card/60"
+              className={`group mb-1 flex items-center justify-between rounded-md border px-2 py-2 hover:bg-card/60 ${
+                currentId === sl.id
+                  ? "border-[color:var(--accent-gold)]/60 bg-[color:var(--accent-gold)]/5"
+                  : "border-transparent hover:border-border"
+              }`}
             >
               <button
                 className="flex-1 text-left"
                 onClick={() => loadFromLibrary(sl)}
               >
-                <div className="text-sm text-foreground">{sl.data.levelName}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm text-foreground">{sl.data.levelName}</span>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${
+                      sl.status === "ready"
+                        ? "bg-[color:var(--accent-gold)]/20 text-[color:var(--accent-gold)]"
+                        : "bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    {sl.status ?? "draft"}
+                  </span>
+                </div>
                 <div className="text-[10px] text-muted-foreground">
                   L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize}
                 </div>
@@ -388,7 +460,33 @@ export function PraemBuilder() {
           showNumbers={showNumbers}
           highlight={highlight}
           onCellClick={onCellClick}
+          rotation={rotation}
+          readOnly={rotation !== 0}
         />
+        {/* Dimension preview toggle */}
+        <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
+          {([
+            { v: 0, label: "Purple", color: "#b87bff" },
+            { v: 1, label: "Amber", color: "#f4c542" },
+            { v: 3, label: "Teal", color: "#14b8a6" },
+          ] as const).map((opt) => (
+            <button
+              key={opt.v}
+              onClick={() => setRotation(opt.v)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition ${
+                rotation === opt.v ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: opt.color }} />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {rotation !== 0 && (
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-border bg-card/80 px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
+            Preview — edit in Purple
+          </div>
+        )}
         {flash && (
           <div
             className={`pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md border px-4 py-2 text-xs backdrop-blur ${
@@ -638,6 +736,32 @@ export function PraemBuilder() {
               className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
             />
           </Field>
+          <Field label="Status">
+            <div className="flex gap-1.5">
+              {(["draft", "ready"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    status === s
+                      ? s === "ready"
+                        ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                        : "border-border bg-card text-foreground"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <button
+            onClick={publishToGame}
+            disabled={publishing}
+            className="mt-2 w-full rounded-md bg-[color:var(--accent-gold)] px-3 py-2 text-xs font-medium uppercase tracking-wider text-background hover:opacity-90 disabled:opacity-50"
+          >
+            {publishing ? "Publishing…" : "Publish to Game"}
+          </button>
           <div className="mt-2">
             <div className="mb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
               Room Links ({roomLinks.length})
@@ -666,9 +790,10 @@ export function PraemBuilder() {
           <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={saveToLibrary}
+              disabled={saving}
               className="rounded-md bg-primary px-2 py-1.5 text-xs text-primary-foreground hover:opacity-90"
             >
-              Save
+              {saving ? "Saving…" : currentId ? "Update" : "Save"}
             </button>
             <button
               onClick={exportJson}

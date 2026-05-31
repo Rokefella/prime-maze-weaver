@@ -14,18 +14,48 @@ interface Props {
   highlight?: { col: number; row: number } | null;
   onCellClick: (col: number, row: number, e: { button: number; shiftKey: boolean }) => void;
   onCellHover?: (col: number, row: number | null) => void;
+  rotation?: 0 | 1 | 2 | 3; // 0=Purple, 1=Amber (CCW), 3=Teal (CW)
+  readOnly?: boolean;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover },
+  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const size = ulam.size;
+
+  // Map a displayed (col,row) to the canonical (col,row) in unrotated space.
+  const toCanonical = (c: number, r: number): { col: number; row: number } => {
+    switch (rotation) {
+      case 1: // CCW: displayed (c,r) <- canonical (size-1-r, c)
+        return { col: r, row: size - 1 - c };
+      case 2:
+        return { col: size - 1 - c, row: size - 1 - r };
+      case 3: // CW
+        return { col: size - 1 - r, row: c };
+      default:
+        return { col: c, row: r };
+    }
+  };
+
+  const canonHighlight = highlight; // highlight passed in canonical; convert to display
+  const toDisplay = (c: number, r: number): { col: number; row: number } => {
+    switch (rotation) {
+      case 1: // canonical (c,r) -> displayed (size-1-r, c)
+        return { col: size - 1 - r, row: c };
+      case 2:
+        return { col: size - 1 - c, row: size - 1 - r };
+      case 3:
+        return { col: r, row: size - 1 - c };
+      default:
+        return { col: c, row: r };
+    }
+  };
 
   // base cell pixel size at scale=1
   const BASE_CELL = 22;
@@ -112,7 +142,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
 
     for (let r = startRow; r <= endRow; r++) {
       for (let c = startCol; c <= endCol; c++) {
-        const i = r * size + c;
+        const canon = toCanonical(c, r);
+        const i = canon.row * size + canon.col;
         const cell = cells[i];
         const isPrime = ulam.isPrime[i] === 1;
         const x = Math.floor(offset.x + c * cellPx);
@@ -183,7 +214,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       ctx.textBaseline = "middle";
       for (let r = startRow; r <= endRow; r++) {
         for (let c = startCol; c <= endCol; c++) {
-          const i = r * size + c;
+          const canon = toCanonical(c, r);
+          const i = canon.row * size + canon.col;
           ctx.fillStyle = ulam.isPrime[i] ? PALETTE.primeNumber : PALETTE.nonPrimeNumber;
           ctx.fillText(
             String(ulam.numbers[i]),
@@ -206,18 +238,19 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       );
     }
 
-    // highlight (from prime list click)
-    if (highlight) {
+    // highlight (from prime list click) — convert canonical to display
+    if (canonHighlight) {
+      const dh = toDisplay(canonHighlight.col, canonHighlight.row);
       ctx.strokeStyle = PALETTE.highlight;
       ctx.lineWidth = 3;
       ctx.strokeRect(
-        offset.x + highlight.col * cellPx + 1,
-        offset.y + highlight.row * cellPx + 1,
+        offset.x + dh.col * cellPx + 1,
+        offset.y + dh.row * cellPx + 1,
         cellPx - 2,
         cellPx - 2,
       );
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
@@ -279,8 +312,12 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           const d = dragRef.current;
           dragRef.current = null;
           if (!d || d.moved) return;
+          if (readOnly) return;
           const cell = pickCell(e.clientX, e.clientY);
-          if (cell) onCellClick(cell.col, cell.row, { button: e.button, shiftKey: e.shiftKey });
+          if (cell) {
+            const canon = toCanonical(cell.col, cell.row);
+            onCellClick(canon.col, canon.row, { button: e.button, shiftKey: e.shiftKey });
+          }
         }}
         onMouseLeave={() => {
           dragRef.current = null;
@@ -307,15 +344,21 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       {/* Hover tooltip */}
       {hover && (
         <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-card/90 px-3 py-1.5 text-xs font-mono text-muted-foreground backdrop-blur">
-          <span className="text-foreground">
-            #{ulam.numbers[hover.row * size + hover.col]}
-          </span>
-          {ulam.isPrime[hover.row * size + hover.col] ? (
-            <span className="ml-2 text-[color:var(--accent-gold)]">prime</span>
-          ) : null}
-          <span className="ml-2">
-            ({hover.col},{hover.row})
-          </span>
+          {(() => {
+            const canon = toCanonical(hover.col, hover.row);
+            const i = canon.row * size + canon.col;
+            return (
+              <>
+                <span className="text-foreground">#{ulam.numbers[i]}</span>
+                {ulam.isPrime[i] ? (
+                  <span className="ml-2 text-[color:var(--accent-gold)]">prime</span>
+                ) : null}
+                <span className="ml-2">
+                  ({canon.col},{canon.row})
+                </span>
+              </>
+            );
+          })()}
         </div>
       )}
       {/* Zoom controls */}
