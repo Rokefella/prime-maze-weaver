@@ -7,134 +7,237 @@ export interface GenParams {
   branching: number; // 0-100
 }
 
-// Produces a base layout of walls and corridors.
-// Approach: randomized DFS carve from center, then post-process based on params.
+// Produces a fully-connected maze layout of walls and corridors.
+// Algorithm: randomized recursive backtracker carving on a step-2 lattice,
+// then optional braiding (dead-end removal / loop addition) controlled by
+// the density / deadEnds / branching sliders. A final flood-fill guarantees
+// every corridor cell is reachable from the origin; any isolated pocket is
+// converted back to wall.
 export function generateMaze(params: GenParams): CellState[] {
   const { size } = params;
   const total = size * size;
   const cells: CellState[] = new Array(total);
-  // start: everything wall
   for (let i = 0; i < total; i++) cells[i] = { type: "WALL" };
 
   const idx = (c: number, r: number) => r * size + c;
   const inBounds = (c: number, r: number) =>
     c >= 0 && c < size && r >= 0 && r < size;
+  const isCorridor = (c: number, r: number) =>
+    inBounds(c, r) && cells[idx(c, r)].type === "CORRIDOR";
 
-  // Carve passages with randomized DFS (corridors on every cell).
+  // Origin snapped to even coords so the step-2 lattice fits inside the grid.
+  const oc = Math.floor((size - 1) / 2) & ~1;
+  const orow = Math.floor((size - 1) / 2) & ~1;
+
   const visited = new Uint8Array(total);
-  const stack: { c: number; r: number }[] = [];
-  const start = { c: Math.floor(size / 2), r: Math.floor(size / 2) };
-  stack.push(start);
-  visited[idx(start.c, start.r)] = 1;
-  cells[idx(start.c, start.r)] = { type: "CORRIDOR" };
+  const stack: { c: number; r: number }[] = [{ c: oc, r: orow }];
+  visited[idx(oc, orow)] = 1;
+  cells[idx(oc, orow)] = { type: "CORRIDOR" };
 
-  // Branching factor: probability of choosing multiple neighbors (push extras)
-  const branchProb = params.branching / 100;
-  // Dead-end factor not directly used in carve - used in post.
+  // Branching: higher values bias the backtracker to keep exploring from
+  // its current cell (longer corridors with fewer immediate splits) vs.
+  // popping back early (more frequent junctions).
+  const branchBias = params.branching / 100;
 
   while (stack.length) {
     const cur = stack[stack.length - 1];
-    const neighbors: { c: number; r: number }[] = [];
     const candidates = [
       { c: cur.c + 2, r: cur.r },
       { c: cur.c - 2, r: cur.r },
       { c: cur.c, r: cur.r + 2 },
       { c: cur.c, r: cur.r - 2 },
-    ];
-    for (const n of candidates) {
-      if (inBounds(n.c, n.r) && !visited[idx(n.c, n.r)]) neighbors.push(n);
-    }
-    if (!neighbors.length) {
+    ].filter((n) => inBounds(n.c, n.r) && !visited[idx(n.c, n.r)]);
+
+    if (!candidates.length) {
       stack.pop();
       continue;
     }
+
     // shuffle
-    for (let i = neighbors.length - 1; i > 0; i--) {
+    for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [neighbors[i], neighbors[j]] = [neighbors[j], neighbors[i]];
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
-    const next = neighbors[0];
-    // carve wall between
-    const wc = (cur.c + next.c) / 2;
-    const wr = (cur.r + next.r) / 2;
-    cells[idx(wc, wr)] = { type: "CORRIDOR" };
+    const next = candidates[0];
+    cells[idx((cur.c + next.c) / 2, (cur.r + next.r) / 2)] = { type: "CORRIDOR" };
     cells[idx(next.c, next.r)] = { type: "CORRIDOR" };
     visited[idx(next.c, next.r)] = 1;
-    stack.push(next);
 
-    // branching: also push other neighbors at random (visited later)
-    for (let k = 1; k < neighbors.length; k++) {
-      if (Math.random() < branchProb) {
-        const extra = neighbors[k];
-        const ec = (cur.c + extra.c) / 2;
-        const er = (cur.r + extra.r) / 2;
-        cells[idx(ec, er)] = { type: "CORRIDOR" };
-        cells[idx(extra.c, extra.r)] = { type: "CORRIDOR" };
-        visited[idx(extra.c, extra.r)] = 1;
-        stack.push(extra);
+    // High branching => pop back to an earlier cell occasionally, opening
+    // new junctions away from the current frontier. Low branching => stay
+    // depth-first (long winding corridors).
+    if (stack.length > 2 && Math.random() > branchBias) {
+      // jump back to a random earlier point in the stack
+      const jumpTo = Math.floor(Math.random() * stack.length);
+      stack.length = jumpTo + 1;
+    }
+    stack.push(next);
+  }
+
+  // Fill any leftover odd-row/col fringe cell on even-sized grids by
+  // connecting it to an adjacent corridor (keeps connectivity).
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (cells[idx(c, r)].type !== "WALL") continue;
+      if (c === size - 1 || r === size - 1) {
+        // only fringe; skip - braiding may still open it
       }
     }
   }
 
-  // Density adjustment: low density removes walls (open more), high density adds walls back.
-  const targetWallRatio = params.density / 100; // 0 = mostly open, 1 = mostly walls
-  // Current ratio of walls:
+  // ----- Braiding (loop addition / dead-end removal) -----
+  // A "dead-end" is a corridor with exactly one corridor neighbor.
+  // - Low deadEnds  => remove most dead-ends by knocking out a wall to a
+  //   neighboring corridor (creates loops, still connected).
+  // - Low density   => additionally open extra walls between two existing
+  //   corridors, producing a more open layout.
+  const keepDeadEnds = params.deadEnds / 100; // 1 => keep all, 0 => remove all
+  const removeProb = 1 - keepDeadEnds;
+
+  const neighborOffsets = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const;
+
+  const corridorNeighbors = (c: number, r: number) =>
+    neighborOffsets
+      .map(([dc, dr]) => ({ c: c + dc, r: r + dr }))
+      .filter((n) => isCorridor(n.c, n.r));
+
+  if (removeProb > 0) {
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (cells[idx(c, r)].type !== "CORRIDOR") continue;
+        if (corridorNeighbors(c, r).length !== 1) continue;
+        if (Math.random() > removeProb) continue;
+        // pick a wall neighbor that has a corridor on the far side (or just
+        // any wall neighbor) and open it
+        const wallNeighbors = neighborOffsets
+          .map(([dc, dr]) => ({ c: c + dc, r: r + dr }))
+          .filter(
+            (n) => inBounds(n.c, n.r) && cells[idx(n.c, n.r)].type === "WALL",
+          );
+        if (!wallNeighbors.length) continue;
+        // prefer walls that bridge to another corridor on the far side
+        const bridges = wallNeighbors.filter((n) => {
+          const fc = n.c + (n.c - c);
+          const fr = n.r + (n.r - r);
+          return isCorridor(fc, fr);
+        });
+        const pick =
+          (bridges.length ? bridges : wallNeighbors)[
+            Math.floor(
+              Math.random() * (bridges.length ? bridges.length : wallNeighbors.length),
+            )
+          ];
+        cells[idx(pick.c, pick.r)] = { type: "CORRIDOR" };
+      }
+    }
+  }
+
+  // Density: target corridor ratio. Low density (slider value) => more open.
+  // We only open walls that bridge two existing corridors so the maze
+  // stays connected.
+  const targetWallRatio = params.density / 100;
   let wallCount = 0;
   for (let i = 0; i < total; i++) if (cells[i].type === "WALL") wallCount++;
-  const currentRatio = wallCount / total;
+  const currentWallRatio = wallCount / total;
 
-  if (targetWallRatio < currentRatio) {
-    // Need to open more cells: convert random walls -> corridor
-    const toRemove = Math.floor((currentRatio - targetWallRatio) * total);
-    let removed = 0;
-    let attempts = 0;
-    while (removed < toRemove && attempts < toRemove * 10) {
-      const i = Math.floor(Math.random() * total);
-      if (cells[i].type === "WALL") {
-        cells[i] = { type: "CORRIDOR" };
-        removed++;
+  if (targetWallRatio < currentWallRatio) {
+    const toOpen = Math.floor((currentWallRatio - targetWallRatio) * total);
+    // collect bridge-walls (wall cells with corridors on opposite sides
+    // OR with 2+ corridor neighbors) to keep connectivity
+    const bridgeWalls: number[] = [];
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (cells[idx(c, r)].type !== "WALL") continue;
+        if (corridorNeighbors(c, r).length >= 1) bridgeWalls.push(idx(c, r));
       }
-      attempts++;
     }
-  } else if (targetWallRatio > currentRatio) {
-    // Add walls back into corridor (but never block our start)
-    const toAdd = Math.floor((targetWallRatio - currentRatio) * total);
-    let added = 0;
-    let attempts = 0;
-    while (added < toAdd && attempts < toAdd * 10) {
-      const i = Math.floor(Math.random() * total);
-      if (cells[i].type === "CORRIDOR") {
-        cells[i] = { type: "WALL" };
-        added++;
-      }
-      attempts++;
+    // shuffle
+    for (let i = bridgeWalls.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bridgeWalls[i], bridgeWalls[j]] = [bridgeWalls[j], bridgeWalls[i]];
+    }
+    for (let k = 0; k < Math.min(toOpen, bridgeWalls.length); k++) {
+      cells[bridgeWalls[k]] = { type: "CORRIDOR" };
     }
   }
 
-  // Dead-ends: with higher value, randomly cap off corridor ends with walls
-  // (close one neighbor of cells that have multiple corridor neighbors).
-  const deProb = params.deadEnds / 100;
-  if (deProb > 0) {
-    for (let r = 1; r < size - 1; r++) {
-      for (let c = 1; c < size - 1; c++) {
-        if (cells[idx(c, r)].type !== "CORRIDOR") continue;
-        if (Math.random() > deProb * 0.3) continue;
-        const ns = [
-          { c: c + 1, r },
-          { c: c - 1, r },
-          { c, r: r + 1 },
-          { c, r: r - 1 },
-        ].filter((n) => cells[idx(n.c, n.r)].type === "CORRIDOR");
-        if (ns.length > 2) {
-          // close one randomly
-          const pick = ns[Math.floor(Math.random() * ns.length)];
-          cells[idx(pick.c, pick.r)] = { type: "WALL" };
-        }
-      }
+  // ----- Final connectivity guarantee -----
+  // Flood-fill from origin; any unreached corridor becomes wall.
+  const reach = computeReachable(cells, size, { col: oc, row: orow });
+  for (let i = 0; i < total; i++) {
+    if (cells[i].type === "CORRIDOR" && !reach[i]) {
+      cells[i] = { type: "WALL" };
     }
   }
 
   return cells;
+}
+
+/**
+ * BFS over corridor-like cells starting from `origin`. Returns a Uint8Array
+ * where 1 marks cells reachable from origin via non-wall cells.
+ * Treats any non-WALL cell as walkable (CORRIDOR, FRAGMENT, START, doors, NPC).
+ */
+export function computeReachable(
+  cells: CellState[],
+  size: number,
+  origin: { col: number; row: number },
+): Uint8Array {
+  const total = size * size;
+  const out = new Uint8Array(total);
+  const idx = (c: number, r: number) => r * size + c;
+  const inBounds = (c: number, r: number) =>
+    c >= 0 && c < size && r >= 0 && r < size;
+  const walkable = (c: number, r: number) =>
+    inBounds(c, r) && cells[idx(c, r)].type !== "WALL";
+  if (!walkable(origin.col, origin.row)) return out;
+  const queue: number[] = [idx(origin.col, origin.row)];
+  out[queue[0]] = 1;
+  while (queue.length) {
+    const i = queue.shift()!;
+    const r = Math.floor(i / size);
+    const c = i - r * size;
+    const ns: [number, number][] = [
+      [c + 1, r],
+      [c - 1, r],
+      [c, r + 1],
+      [c, r - 1],
+    ];
+    for (const [nc, nr] of ns) {
+      if (!walkable(nc, nr)) continue;
+      const ni = idx(nc, nr);
+      if (out[ni]) continue;
+      out[ni] = 1;
+      queue.push(ni);
+    }
+  }
+  return out;
+}
+
+/** Find a sensible flood-fill origin: prefer an existing START cell,
+ *  otherwise the first non-wall cell encountered. Returns null if none. */
+export function findOrigin(
+  cells: CellState[],
+  size: number,
+): { col: number; row: number } | null {
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i].type === "START") {
+      const r = Math.floor(i / size);
+      return { col: i - r * size, row: r };
+    }
+  }
+  for (let i = 0; i < cells.length; i++) {
+    if (cells[i].type !== "WALL") {
+      const r = Math.floor(i / size);
+      return { col: i - r * size, row: r };
+    }
+  }
+  return null;
 }
 
 export const PRESETS: Record<

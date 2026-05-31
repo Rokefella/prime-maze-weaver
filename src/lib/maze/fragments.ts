@@ -1,12 +1,19 @@
 import type { UlamData } from "./ulam";
 
 // Pick N primes spread evenly across the grid using farthest-point sampling.
+// If a reachability mask is supplied, only primes on reachable (non-wall,
+// connected) cells are considered.
 export function suggestFragmentCells(
   ulam: UlamData,
   count: number,
+  reachable?: Uint8Array,
 ): { col: number; row: number }[] {
   if (count <= 0 || ulam.primes.length === 0) return [];
-  const primes = ulam.primes;
+  const size = ulam.size;
+  const primes = reachable
+    ? ulam.primes.filter((p) => reachable[p.row * size + p.col] === 1)
+    : ulam.primes;
+  if (primes.length === 0) return [];
   const target = Math.min(count, primes.length);
 
   // Start with prime closest to center.
