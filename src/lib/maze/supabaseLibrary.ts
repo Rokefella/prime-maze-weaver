@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { ExportedLevel, SavedLevel } from "./types";
 
 export type LevelStatus = "draft" | "ready";
@@ -37,7 +38,7 @@ export async function upsertBuilderLevel(args: {
     level_name: args.data.levelName,
     status: args.status,
     grid_size: args.data.gridSize,
-    data: args.data as unknown as Record<string, unknown>,
+    data: args.data as unknown as Json,
     updated_at: new Date().toISOString(),
   };
   if (args.id) {
@@ -69,7 +70,7 @@ export async function publishLevel(data: ExportedLevel): Promise<void> {
     level_number: data.levelNumber,
     level_name: data.levelName,
     grid_size: data.gridSize,
-    data: data as unknown as Record<string, unknown>,
+    data: data as unknown as Json,
     published_at: new Date().toISOString(),
   };
   const { error } = await supabase
