@@ -1,0 +1,749 @@
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
+import { buildUlamData } from "@/lib/maze/ulam";
+import { generateMaze, PRESETS } from "@/lib/maze/generator";
+import { suggestFragmentCells } from "@/lib/maze/fragments";
+import {
+  exportLevel,
+  importLevel,
+  loadLibrary,
+  saveLibrary,
+  downloadJson,
+} from "@/lib/maze/storage";
+import type {
+  CellState,
+  CellType,
+  LevelMeta,
+  SavedLevel,
+  ExportedLevel,
+} from "@/lib/maze/types";
+import { CELL_LABELS, PALETTE } from "@/lib/maze/palette";
+
+const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
+  { type: "CORRIDOR", swatch: PALETTE.corridor, label: CELL_LABELS.CORRIDOR },
+  { type: "WALL", swatch: PALETTE.wall, label: CELL_LABELS.WALL },
+  { type: "FRAGMENT", swatch: PALETTE.fragment, label: CELL_LABELS.FRAGMENT },
+  { type: "START", swatch: PALETTE.start, label: CELL_LABELS.START },
+  { type: "GOLDEN_DOOR", swatch: PALETTE.goldenDoor, label: CELL_LABELS.GOLDEN_DOOR },
+  { type: "BLUE_DOOR", swatch: PALETTE.blueDoor, label: CELL_LABELS.BLUE_DOOR },
+  { type: "DOOR_TO_ROOM", swatch: PALETTE.doorToRoom, label: CELL_LABELS.DOOR_TO_ROOM },
+  { type: "NPC", swatch: PALETTE.npc, label: CELL_LABELS.NPC },
+];
+
+function makeBlankCells(size: number): CellState[] {
+  const total = size * size;
+  const cells: CellState[] = new Array(total);
+  for (let i = 0; i < total; i++) cells[i] = { type: "CORRIDOR" };
+  return cells;
+}
+
+function defaultMeta(): LevelMeta {
+  return { levelNumber: 1, levelName: "Untitled", requiredFragments: 0, notes: "" };
+}
+
+interface Flash {
+  msg: string;
+  tone: "info" | "warn";
+}
+
+interface PendingDoor {
+  col: number;
+  row: number;
+  roomId: string;
+  awaitingReentry: boolean;
+}
+interface PendingNpc {
+  col: number;
+  row: number;
+  name: string;
+}
+
+export function PraemBuilder() {
+  const [size, setSize] = useState(30);
+  const ulam = useMemo(() => buildUlamData(size), [size]);
+  const [cells, setCells] = useState<CellState[]>(() => makeBlankCells(30));
+  const [tool, setTool] = useState<CellType>("WALL");
+  const [showNumbers, setShowNumbers] = useState(false);
+  const [meta, setMeta] = useState<LevelMeta>(defaultMeta);
+  const [density, setDensity] = useState(50);
+  const [deadEnds, setDeadEnds] = useState(50);
+  const [branching, setBranching] = useState(50);
+  const [numFragments, setNumFragments] = useState(5);
+  const [library, setLibrary] = useState<SavedLevel[]>([]);
+  const [highlight, setHighlight] = useState<{ col: number; row: number } | null>(null);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  const [pendingDoor, setPendingDoor] = useState<PendingDoor | null>(null);
+  const [pendingNpc, setPendingNpc] = useState<PendingNpc | null>(null);
+  const [manuallyEdited, setManuallyEdited] = useState(false);
+
+  const gridRef = useRef<GridCanvasHandle>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLibrary(loadLibrary());
+  }, []);
+
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 2500);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  // When size changes, reset cells to blank.
+  const resizeGrid = (newSize: number) => {
+    if (manuallyEdited && cells.some((c) => c.type !== "CORRIDOR")) {
+      if (!confirm("Changing grid size will clear the current layout. Continue?")) {
+        return;
+      }
+    }
+    setSize(newSize);
+    setCells(makeBlankCells(newSize));
+    setManuallyEdited(false);
+    setPendingDoor(null);
+    setPendingNpc(null);
+  };
+
+  const onCellClick = useCallback(
+    (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
+      const idx = row * size + col;
+
+      // Right-click clears to corridor
+      if (e.button === 2) {
+        setCells((prev) => {
+          const next = prev.slice();
+          next[idx] = { type: "CORRIDOR" };
+          return next;
+        });
+        setManuallyEdited(true);
+        return;
+      }
+
+      // Awaiting reentry pick for a pending door
+      if (pendingDoor?.awaitingReentry) {
+        setPendingDoor({ ...pendingDoor, awaitingReentry: false });
+        setCells((prev) => {
+          const next = prev.slice();
+          next[pendingDoor.row * size + pendingDoor.col] = {
+            type: "DOOR_TO_ROOM",
+            door: {
+              roomId: pendingDoor.roomId,
+              reentry: { col, row },
+            },
+          };
+          return next;
+        });
+        setFlash({ msg: `Door reentry set at (${col},${row})`, tone: "info" });
+        setManuallyEdited(true);
+        return;
+      }
+
+      // Tool-based placement
+      if (tool === "FRAGMENT") {
+        if (!ulam.isPrime[idx]) {
+          setFlash({ msg: "Fragments can only be placed on prime (gold) cells.", tone: "warn" });
+          return;
+        }
+      }
+
+      if (tool === "DOOR_TO_ROOM") {
+        // Open inline form
+        setPendingDoor({ col, row, roomId: "", awaitingReentry: false });
+        return;
+      }
+
+      if (tool === "NPC") {
+        setPendingNpc({ col, row, name: "" });
+        return;
+      }
+
+      // Unique-cell tools: clear previous occurrence
+      setCells((prev) => {
+        const next = prev.slice();
+        if (tool === "START" || tool === "GOLDEN_DOOR" || tool === "BLUE_DOOR") {
+          for (let i = 0; i < next.length; i++) {
+            if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
+          }
+        }
+        next[idx] = { type: tool };
+        return next;
+      });
+      setManuallyEdited(true);
+    },
+    [tool, size, ulam, pendingDoor],
+  );
+
+  const runGenerate = () => {
+    if (manuallyEdited && confirm("Regenerate base layout? This will overwrite your manual edits.") === false) {
+      return;
+    }
+    const next = generateMaze({ size, density, deadEnds, branching });
+    setCells(next);
+    setManuallyEdited(false);
+    setFlash({ msg: "Layout generated.", tone: "info" });
+  };
+
+  const applyPreset = (k: "simple" | "medium" | "complex") => {
+    const p = PRESETS[k];
+    setDensity(p.density);
+    setDeadEnds(p.deadEnds);
+    setBranching(p.branching);
+  };
+
+  const suggestFragments = () => {
+    const picks = suggestFragmentCells(ulam, numFragments);
+    if (picks.length === 0) {
+      setFlash({ msg: "No prime cells available.", tone: "warn" });
+      return;
+    }
+    setCells((prev) => {
+      const next = prev.slice();
+      // Clear existing fragments first
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].type === "FRAGMENT") next[i] = { type: "CORRIDOR" };
+      }
+      for (const p of picks) {
+        const i = p.row * size + p.col;
+        // Don't overwrite start/doors/npc
+        const cur = next[i].type;
+        if (cur === "START" || cur === "GOLDEN_DOOR" || cur === "BLUE_DOOR" || cur === "DOOR_TO_ROOM" || cur === "NPC") continue;
+        next[i] = { type: "FRAGMENT" };
+      }
+      return next;
+    });
+    setManuallyEdited(true);
+    setFlash({ msg: `Placed ${picks.length} fragments.`, tone: "info" });
+  };
+
+  const newLevel = () => {
+    if (manuallyEdited && !confirm("Discard current level and start fresh?")) return;
+    setCells(makeBlankCells(size));
+    setMeta(defaultMeta());
+    setManuallyEdited(false);
+    setPendingDoor(null);
+    setPendingNpc(null);
+    setHighlight(null);
+  };
+
+  const saveToLibrary = () => {
+    const data = exportLevel(cells, ulam, meta);
+    const lib = loadLibrary();
+    const id = `${meta.levelName}__${meta.levelNumber}`;
+    const existing = lib.findIndex((l) => l.id === id);
+    const entry: SavedLevel = { id, savedAt: Date.now(), data };
+    if (existing >= 0) lib[existing] = entry;
+    else lib.push(entry);
+    saveLibrary(lib);
+    setLibrary(lib);
+    setFlash({ msg: `Saved "${meta.levelName}" to library.`, tone: "info" });
+  };
+
+  const loadFromLibrary = (sl: SavedLevel) => {
+    const { cells: c, meta: m, size: s } = importLevel(sl.data);
+    setSize(s);
+    setCells(c);
+    setMeta(m);
+    setManuallyEdited(false);
+    setPendingDoor(null);
+    setPendingNpc(null);
+    setHighlight(null);
+  };
+
+  const deleteFromLibrary = (id: string) => {
+    if (!confirm("Delete this saved level?")) return;
+    const lib = loadLibrary().filter((l) => l.id !== id);
+    saveLibrary(lib);
+    setLibrary(lib);
+  };
+
+  const exportJson = () => {
+    const data = exportLevel(cells, ulam, meta);
+    const safeName = meta.levelName.replace(/[^a-z0-9_-]+/gi, "_") || "level";
+    downloadJson(`${safeName}.json`, data);
+  };
+
+  const importJson = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string) as ExportedLevel;
+        const { cells: c, meta: m, size: s } = importLevel(data);
+        setSize(s);
+        setCells(c);
+        setMeta(m);
+        setManuallyEdited(false);
+        setHighlight(null);
+        setFlash({ msg: `Imported "${m.levelName}".`, tone: "info" });
+      } catch (err) {
+        console.error(err);
+        setFlash({ msg: "Invalid JSON file.", tone: "warn" });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Derived: list of door-to-room cells for the metadata panel
+  const roomLinks = useMemo(() => {
+    const out: { col: number; row: number; roomId: string }[] = [];
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        const cell = cells[r * size + c];
+        if (cell.type === "DOOR_TO_ROOM" && cell.door) {
+          out.push({ col: c, row: r, roomId: cell.door.roomId });
+        }
+      }
+    }
+    return out;
+  }, [cells, size]);
+
+  // Save pending door confirm
+  const confirmDoorRoomId = () => {
+    if (!pendingDoor) return;
+    if (!pendingDoor.roomId.trim()) {
+      setFlash({ msg: "Room ID required.", tone: "warn" });
+      return;
+    }
+    // Place placeholder door (without reentry yet) and switch to awaitingReentry
+    setPendingDoor({ ...pendingDoor, awaitingReentry: true });
+    setFlash({ msg: "Now click a cell to set the re-entry point.", tone: "info" });
+  };
+
+  const cancelPendingDoor = () => setPendingDoor(null);
+
+  const confirmNpc = () => {
+    if (!pendingNpc) return;
+    if (!pendingNpc.name.trim()) {
+      setFlash({ msg: "NPC name required.", tone: "warn" });
+      return;
+    }
+    setCells((prev) => {
+      const next = prev.slice();
+      next[pendingNpc.row * size + pendingNpc.col] = {
+        type: "NPC",
+        npc: { name: pendingNpc.name.trim() },
+      };
+      return next;
+    });
+    setManuallyEdited(true);
+    setPendingNpc(null);
+  };
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+      {/* Left sidebar: Library */}
+      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card/30">
+        <div className="border-b border-border p-4">
+          <h2 className="font-display text-sm uppercase tracking-[0.25em] text-[color:var(--accent-gold)]">
+            PRÆM
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">Instrument Builder</p>
+        </div>
+        <div className="p-3">
+          <button
+            onClick={newLevel}
+            className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-2 text-xs font-medium uppercase tracking-wider text-[color:var(--accent-gold)] transition hover:bg-[color:var(--accent-gold)]/20"
+          >
+            + New Level
+          </button>
+        </div>
+        <div className="px-3 pb-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+          Library
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-3">
+          {library.length === 0 && (
+            <div className="px-2 py-3 text-xs text-muted-foreground">No saved levels.</div>
+          )}
+          {library.map((sl) => (
+            <div
+              key={sl.id}
+              className="group mb-1 flex items-center justify-between rounded-md border border-transparent px-2 py-2 hover:border-border hover:bg-card/60"
+            >
+              <button
+                className="flex-1 text-left"
+                onClick={() => loadFromLibrary(sl)}
+              >
+                <div className="text-sm text-foreground">{sl.data.levelName}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize}
+                </div>
+              </button>
+              <button
+                onClick={() => deleteFromLibrary(sl.id)}
+                className="ml-2 opacity-0 transition group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive"
+                aria-label="Delete"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Center: grid */}
+      <main className="relative flex-1 overflow-hidden">
+        <GridCanvas
+          ref={gridRef}
+          ulam={ulam}
+          cells={cells}
+          showNumbers={showNumbers}
+          highlight={highlight}
+          onCellClick={onCellClick}
+        />
+        {flash && (
+          <div
+            className={`pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md border px-4 py-2 text-xs backdrop-blur ${
+              flash.tone === "warn"
+                ? "border-destructive/40 bg-destructive/10 text-destructive-foreground"
+                : "border-[color:var(--accent-gold)]/40 bg-card/80 text-foreground"
+            }`}
+          >
+            {flash.msg}
+          </div>
+        )}
+
+        {/* Pending door inline form */}
+        {pendingDoor && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              Door to Room @ ({pendingDoor.col},{pendingDoor.row})
+            </div>
+            {!pendingDoor.awaitingReentry ? (
+              <>
+                <label className="mb-1 block text-xs text-muted-foreground">Room ID</label>
+                <input
+                  autoFocus
+                  value={pendingDoor.roomId}
+                  onChange={(e) => setPendingDoor({ ...pendingDoor, roomId: e.target.value })}
+                  placeholder="golden_89_room"
+                  className="mb-3 w-64 rounded-md border border-border bg-background px-2 py-1 text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmDoorRoomId}
+                    className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+                  >
+                    Set Re-entry →
+                  </button>
+                  <button
+                    onClick={cancelPendingDoor}
+                    className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-xs text-muted-foreground">
+                Click any cell on the grid to set the re-entry point.
+                <div className="mt-2">
+                  <button
+                    onClick={cancelPendingDoor}
+                    className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-card"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pending NPC inline form */}
+        {pendingNpc && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              NPC @ ({pendingNpc.col},{pendingNpc.row})
+            </div>
+            <label className="mb-1 block text-xs text-muted-foreground">Name</label>
+            <input
+              autoFocus
+              value={pendingNpc.name}
+              onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && confirmNpc()}
+              placeholder="The Painter"
+              className="mb-3 w-64 rounded-md border border-border bg-background px-2 py-1 text-sm"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={confirmNpc}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setPendingNpc(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Right sidebar */}
+      <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
+        <Section title="Grid">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Size</span>
+            <input
+              type="number"
+              min={20}
+              max={150}
+              value={size}
+              onChange={(e) => {
+                const v = Math.max(20, Math.min(150, parseInt(e.target.value || "20", 10)));
+                resizeGrid(v);
+              }}
+              className="w-20 rounded border border-border bg-background px-2 py-1"
+            />
+            <span className="text-muted-foreground">× {size}</span>
+          </div>
+          <label className="mt-2 flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={showNumbers}
+              onChange={(e) => setShowNumbers(e.target.checked)}
+            />
+            <span>Show all cell numbers</span>
+          </label>
+        </Section>
+
+        <Section title="Cell Tools">
+          <div className="grid grid-cols-2 gap-1.5">
+            {TOOL_LIST.map((t) => (
+              <button
+                key={t.type}
+                onClick={() => setTool(t.type)}
+                className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition ${
+                  tool === t.type
+                    ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10"
+                    : "border-border hover:bg-card/60"
+                }`}
+              >
+                <span
+                  className="inline-block h-3 w-3 rounded-sm border border-white/20"
+                  style={{ background: t.swatch }}
+                />
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom.
+          </p>
+        </Section>
+
+        <Section title="Complexity">
+          <div className="mb-2 flex gap-1.5">
+            {(["simple", "medium", "complex"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => applyPreset(k)}
+                className="flex-1 rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-card/60"
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          <Slider label="Density" value={density} onChange={setDensity} />
+          <Slider label="Dead-ends" value={deadEnds} onChange={setDeadEnds} />
+          <Slider label="Branching" value={branching} onChange={setBranching} />
+          <button
+            onClick={runGenerate}
+            className="mt-2 w-full rounded-md bg-primary px-3 py-2 text-xs font-medium uppercase tracking-wider text-primary-foreground hover:opacity-90"
+          >
+            Generate Layout
+          </button>
+        </Section>
+
+        <Section title="Fragments">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Count</span>
+            <input
+              type="number"
+              min={0}
+              max={ulam.primes.length}
+              value={numFragments}
+              onChange={(e) => setNumFragments(Math.max(0, parseInt(e.target.value || "0", 10)))}
+              className="w-20 rounded border border-border bg-background px-2 py-1"
+            />
+            <span className="text-muted-foreground">/ {ulam.primes.length} primes</span>
+          </div>
+          <button
+            onClick={suggestFragments}
+            className="mt-2 w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+          >
+            Suggest Fragments
+          </button>
+        </Section>
+
+        <Section title="Prime Reference">
+          <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-background/50">
+            {ulam.primes.length === 0 && (
+              <div className="px-2 py-2 text-xs text-muted-foreground">None.</div>
+            )}
+            {ulam.primes.map((p) => (
+              <button
+                key={p.n}
+                onClick={() => {
+                  setHighlight({ col: p.col, row: p.row });
+                  gridRef.current?.centerOn(p.col, p.row);
+                }}
+                className="flex w-full items-center justify-between px-2 py-1 text-left text-xs hover:bg-card/60"
+              >
+                <span className="font-mono text-[color:var(--accent-gold)]">{p.n}</span>
+                <span className="text-muted-foreground">
+                  ({p.col},{p.row})
+                </span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Level Metadata">
+          <Field label="Level #">
+            <input
+              type="number"
+              value={meta.levelNumber}
+              onChange={(e) =>
+                setMeta({ ...meta, levelNumber: parseInt(e.target.value || "0", 10) })
+              }
+              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            />
+          </Field>
+          <Field label="Name">
+            <input
+              type="text"
+              value={meta.levelName}
+              onChange={(e) => setMeta({ ...meta, levelName: e.target.value })}
+              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            />
+          </Field>
+          <Field label="Required Fragments">
+            <input
+              type="number"
+              value={meta.requiredFragments}
+              onChange={(e) =>
+                setMeta({ ...meta, requiredFragments: parseInt(e.target.value || "0", 10) })
+              }
+              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            />
+          </Field>
+          <Field label="Notes">
+            <textarea
+              value={meta.notes}
+              onChange={(e) => setMeta({ ...meta, notes: e.target.value })}
+              rows={3}
+              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+            />
+          </Field>
+          <div className="mt-2">
+            <div className="mb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+              Room Links ({roomLinks.length})
+            </div>
+            {roomLinks.length === 0 ? (
+              <div className="text-xs text-muted-foreground">No doors placed.</div>
+            ) : (
+              <div className="max-h-28 overflow-y-auto rounded-md border border-border bg-background/50">
+                {roomLinks.map((rl, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-2 py-1 text-xs"
+                  >
+                    <span className="truncate text-foreground">{rl.roomId || "(unnamed)"}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      ({rl.col},{rl.row})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section title="Save / Export">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={saveToLibrary}
+              className="rounded-md bg-primary px-2 py-1.5 text-xs text-primary-foreground hover:opacity-90"
+            >
+              Save
+            </button>
+            <button
+              onClick={exportJson}
+              className="rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-2 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+            >
+              Export JSON
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="col-span-2 rounded-md border border-border px-2 py-1.5 text-xs text-foreground hover:bg-card/60"
+            >
+              Import JSON
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importJson(f);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        </Section>
+      </aside>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="border-b border-border p-4">
+      <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-[color:var(--accent-gold)]">
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="mb-2 block">
+      <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function Slider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="mb-2">
+      <div className="mb-0.5 flex justify-between text-[10px] text-muted-foreground">
+        <span>{label}</span>
+        <span className="font-mono text-foreground">{value}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        className="w-full accent-[color:var(--accent-gold)]"
+      />
+    </div>
+  );
+}
