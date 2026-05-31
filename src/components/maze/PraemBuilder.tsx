@@ -736,6 +736,32 @@ export function PraemBuilder() {
               className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
             />
           </Field>
+          <Field label="Status">
+            <div className="flex gap-1.5">
+              {(["draft", "ready"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    status === s
+                      ? s === "ready"
+                        ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                        : "border-border bg-card text-foreground"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <button
+            onClick={publishToGame}
+            disabled={publishing}
+            className="mt-2 w-full rounded-md bg-[color:var(--accent-gold)] px-3 py-2 text-xs font-medium uppercase tracking-wider text-background hover:opacity-90 disabled:opacity-50"
+          >
+            {publishing ? "Publishing…" : "Publish to Game"}
+          </button>
           <div className="mt-2">
             <div className="mb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
               Room Links ({roomLinks.length})
@@ -764,9 +790,10 @@ export function PraemBuilder() {
           <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={saveToLibrary}
+              disabled={saving}
               className="rounded-md bg-primary px-2 py-1.5 text-xs text-primary-foreground hover:opacity-90"
             >
-              Save
+              {saving ? "Saving…" : currentId ? "Update" : "Save"}
             </button>
             <button
               onClick={exportJson}
