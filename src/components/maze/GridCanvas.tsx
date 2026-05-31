@@ -1,0 +1,367 @@
+import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
+import type { CellState } from "@/lib/maze/types";
+import type { UlamData } from "@/lib/maze/ulam";
+import { PALETTE } from "@/lib/maze/palette";
+
+export interface GridCanvasHandle {
+  centerOn: (col: number, row: number) => void;
+}
+
+interface Props {
+  ulam: UlamData;
+  cells: CellState[];
+  showNumbers: boolean;
+  highlight?: { col: number; row: number } | null;
+  onCellClick: (col: number, row: number, e: { button: number; shiftKey: boolean }) => void;
+  onCellHover?: (col: number, row: number | null) => void;
+}
+
+const MIN_SCALE = 0.15;
+const MAX_SCALE = 4;
+
+export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
+  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover },
+  ref,
+) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const size = ulam.size;
+
+  // base cell pixel size at scale=1
+  const BASE_CELL = 22;
+
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [hover, setHover] = useState<{ col: number; row: number } | null>(null);
+  const [viewport, setViewport] = useState({ w: 0, h: 0 });
+
+  // Animation tick for fragment pulse
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const loop = () => {
+      setTick((t) => (t + 1) % 100000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Resize observer
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      const rect = el.getBoundingClientRect();
+      setViewport({ w: rect.width, h: rect.height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Fit on first mount / size change
+  useEffect(() => {
+    if (viewport.w === 0 || viewport.h === 0) return;
+    const gridPx = size * BASE_CELL;
+    const s = Math.min(viewport.w / gridPx, viewport.h / gridPx) * 0.95;
+    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+    setScale(clamped);
+    setOffset({
+      x: (viewport.w - gridPx * clamped) / 2,
+      y: (viewport.h - gridPx * clamped) / 2,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size, viewport.w, viewport.h]);
+
+  const centerOn = useCallback(
+    (col: number, row: number) => {
+      const cellPx = BASE_CELL * scale;
+      setOffset({
+        x: viewport.w / 2 - (col + 0.5) * cellPx,
+        y: viewport.h / 2 - (row + 0.5) * cellPx,
+      });
+    },
+    [scale, viewport.w, viewport.h],
+  );
+
+  useImperativeHandle(ref, () => ({ centerOn }), [centerOn]);
+
+  // Drawing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || viewport.w === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = viewport.w * dpr;
+    canvas.height = viewport.h * dpr;
+    canvas.style.width = `${viewport.w}px`;
+    canvas.style.height = `${viewport.h}px`;
+    const ctx = canvas.getContext("2d")!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.fillStyle = PALETTE.background;
+    ctx.fillRect(0, 0, viewport.w, viewport.h);
+
+    const cellPx = BASE_CELL * scale;
+    // Determine visible cell range
+    const startCol = Math.max(0, Math.floor(-offset.x / cellPx));
+    const endCol = Math.min(size - 1, Math.ceil((viewport.w - offset.x) / cellPx));
+    const startRow = Math.max(0, Math.floor(-offset.y / cellPx));
+    const endRow = Math.min(size - 1, Math.ceil((viewport.h - offset.y) / cellPx));
+
+    const pulse = 0.5 + 0.5 * Math.sin(tick * 0.08);
+
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        const i = r * size + c;
+        const cell = cells[i];
+        const isPrime = ulam.isPrime[i] === 1;
+        const x = Math.floor(offset.x + c * cellPx);
+        const y = Math.floor(offset.y + r * cellPx);
+        const w = Math.ceil(cellPx);
+        const h = Math.ceil(cellPx);
+
+        let fill = PALETTE.corridor;
+        switch (cell.type) {
+          case "WALL":
+            fill = PALETTE.wall;
+            break;
+          case "CORRIDOR":
+            fill = isPrime ? PALETTE.primeCorridor : PALETTE.corridor;
+            break;
+          case "FRAGMENT": {
+            // pulsate
+            const a = 0.55 + 0.45 * pulse;
+            ctx.fillStyle = isPrime ? PALETTE.primeCorridor : PALETTE.corridor;
+            ctx.fillRect(x, y, w, h);
+            ctx.fillStyle = `rgba(184,123,255,${a})`;
+            ctx.fillRect(x, y, w, h);
+            continue;
+          }
+          case "GOLDEN_DOOR":
+            fill = PALETTE.goldenDoor;
+            break;
+          case "START":
+            fill = PALETTE.start;
+            break;
+          case "BLUE_DOOR":
+            fill = PALETTE.blueDoor;
+            break;
+          case "DOOR_TO_ROOM":
+            fill = PALETTE.doorToRoom;
+            break;
+          case "NPC":
+            fill = PALETTE.npc;
+            break;
+        }
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+
+    // grid lines (only if cells big enough)
+    if (cellPx >= 6) {
+      ctx.strokeStyle = PALETTE.gridLine;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let c = startCol; c <= endCol + 1; c++) {
+        const x = Math.floor(offset.x + c * cellPx) + 0.5;
+        ctx.moveTo(x, Math.floor(offset.y + startRow * cellPx));
+        ctx.lineTo(x, Math.floor(offset.y + (endRow + 1) * cellPx));
+      }
+      for (let r = startRow; r <= endRow + 1; r++) {
+        const y = Math.floor(offset.y + r * cellPx) + 0.5;
+        ctx.moveTo(Math.floor(offset.x + startCol * cellPx), y);
+        ctx.lineTo(Math.floor(offset.x + (endCol + 1) * cellPx), y);
+      }
+      ctx.stroke();
+    }
+
+    // numbers overlay
+    if (showNumbers && cellPx >= 16) {
+      ctx.font = `${Math.floor(cellPx * 0.38)}px ui-monospace, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const i = r * size + c;
+          ctx.fillStyle = ulam.isPrime[i] ? PALETTE.primeNumber : PALETTE.nonPrimeNumber;
+          ctx.fillText(
+            String(ulam.numbers[i]),
+            offset.x + (c + 0.5) * cellPx,
+            offset.y + (r + 0.5) * cellPx,
+          );
+        }
+      }
+    }
+
+    // hover outline
+    if (hover && hover.col >= startCol && hover.col <= endCol && hover.row >= startRow && hover.row <= endRow) {
+      ctx.strokeStyle = PALETTE.hoverOutline;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        offset.x + hover.col * cellPx + 1,
+        offset.y + hover.row * cellPx + 1,
+        cellPx - 2,
+        cellPx - 2,
+      );
+    }
+
+    // highlight (from prime list click)
+    if (highlight) {
+      ctx.strokeStyle = PALETTE.highlight;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(
+        offset.x + highlight.col * cellPx + 1,
+        offset.y + highlight.row * cellPx + 1,
+        cellPx - 2,
+        cellPx - 2,
+      );
+    }
+  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size]);
+
+  // Mouse events
+  const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
+
+  const pickCell = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const cellPx = BASE_CELL * scale;
+    const c = Math.floor((x - offset.x) / cellPx);
+    const r = Math.floor((y - offset.y) / cellPx);
+    if (c < 0 || c >= size || r < 0 || r >= size) return null;
+    return { col: c, row: r };
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden"
+      style={{ touchAction: "none" }}
+    >
+      <canvas
+        ref={canvasRef}
+        className="block cursor-crosshair"
+        onMouseDown={(e) => {
+          dragRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            ox: offset.x,
+            oy: offset.y,
+            moved: false,
+            button: e.button,
+          };
+        }}
+        onMouseMove={(e) => {
+          const d = dragRef.current;
+          if (d) {
+            const dx = e.clientX - d.x;
+            const dy = e.clientY - d.y;
+            // Middle-click or shift+left = pan; left-drag also pans if moved > threshold
+            if (d.button === 1 || e.shiftKey) {
+              setOffset({ x: d.ox + dx, y: d.oy + dy });
+              d.moved = true;
+              return;
+            }
+            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+              setOffset({ x: d.ox + dx, y: d.oy + dy });
+              d.moved = true;
+              return;
+            }
+          }
+          const cell = pickCell(e.clientX, e.clientY);
+          setHover(cell);
+          onCellHover?.(cell?.col ?? 0, cell?.row ?? null);
+        }}
+        onMouseUp={(e) => {
+          const d = dragRef.current;
+          dragRef.current = null;
+          if (!d || d.moved) return;
+          const cell = pickCell(e.clientX, e.clientY);
+          if (cell) onCellClick(cell.col, cell.row, { button: e.button, shiftKey: e.shiftKey });
+        }}
+        onMouseLeave={() => {
+          dragRef.current = null;
+          setHover(null);
+          onCellHover?.(0, null);
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+        onWheel={(e) => {
+          e.preventDefault();
+          const rect = canvasRef.current!.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const my = e.clientY - rect.top;
+          const delta = -e.deltaY * 0.0015;
+          const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (1 + delta)));
+          // Zoom around mouse position
+          const k = newScale / scale;
+          setOffset({
+            x: mx - (mx - offset.x) * k,
+            y: my - (my - offset.y) * k,
+          });
+          setScale(newScale);
+        }}
+      />
+      {/* Hover tooltip */}
+      {hover && (
+        <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-card/90 px-3 py-1.5 text-xs font-mono text-muted-foreground backdrop-blur">
+          <span className="text-foreground">
+            #{ulam.numbers[hover.row * size + hover.col]}
+          </span>
+          {ulam.isPrime[hover.row * size + hover.col] ? (
+            <span className="ml-2 text-[color:var(--accent-gold)]">prime</span>
+          ) : null}
+          <span className="ml-2">
+            ({hover.col},{hover.row})
+          </span>
+        </div>
+      )}
+      {/* Zoom controls */}
+      <div className="absolute bottom-3 right-3 flex flex-col gap-1">
+        <button
+          className="rounded border border-border bg-card/80 px-2 py-1 text-sm text-foreground hover:bg-card"
+          onClick={() => {
+            const cx = viewport.w / 2;
+            const cy = viewport.h / 2;
+            const newScale = Math.min(MAX_SCALE, scale * 1.2);
+            const k = newScale / scale;
+            setOffset({ x: cx - (cx - offset.x) * k, y: cy - (cy - offset.y) * k });
+            setScale(newScale);
+          }}
+        >
+          +
+        </button>
+        <button
+          className="rounded border border-border bg-card/80 px-2 py-1 text-sm text-foreground hover:bg-card"
+          onClick={() => {
+            const cx = viewport.w / 2;
+            const cy = viewport.h / 2;
+            const newScale = Math.max(MIN_SCALE, scale * 0.8);
+            const k = newScale / scale;
+            setOffset({ x: cx - (cx - offset.x) * k, y: cy - (cy - offset.y) * k });
+            setScale(newScale);
+          }}
+        >
+          −
+        </button>
+        <button
+          className="rounded border border-border bg-card/80 px-2 py-1 text-[10px] text-foreground hover:bg-card"
+          onClick={() => {
+            const gridPx = size * BASE_CELL;
+            const s = Math.min(viewport.w / gridPx, viewport.h / gridPx) * 0.95;
+            const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+            setScale(clamped);
+            setOffset({
+              x: (viewport.w - gridPx * clamped) / 2,
+              y: (viewport.h - gridPx * clamped) / 2,
+            });
+          }}
+        >
+          FIT
+        </button>
+      </div>
+    </div>
+  );
+});
