@@ -6,10 +6,15 @@ import { suggestFragmentCells } from "@/lib/maze/fragments";
 import {
   exportLevel,
   importLevel,
-  loadLibrary,
-  saveLibrary,
   downloadJson,
 } from "@/lib/maze/storage";
+import {
+  listBuilderLevels,
+  upsertBuilderLevel,
+  deleteBuilderLevel,
+  publishLevel,
+  type LevelStatus,
+} from "@/lib/maze/supabaseLibrary";
 import type {
   CellState,
   CellType,
@@ -75,13 +80,28 @@ export function PraemBuilder() {
   const [pendingDoor, setPendingDoor] = useState<PendingDoor | null>(null);
   const [pendingNpc, setPendingNpc] = useState<PendingNpc | null>(null);
   const [manuallyEdited, setManuallyEdited] = useState(false);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [status, setStatus] = useState<LevelStatus>("draft");
+  const [rotation, setRotation] = useState<0 | 1 | 3>(0); // 0=Purple, 1=Amber CCW, 3=Teal CW
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLibrary(loadLibrary());
+    refreshLibrary();
   }, []);
+
+  const refreshLibrary = async () => {
+    try {
+      const lib = await listBuilderLevels();
+      setLibrary(lib);
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Failed to load library.", tone: "warn" });
+    }
+  };
 
   useEffect(() => {
     if (!flash) return;
@@ -223,19 +243,25 @@ export function PraemBuilder() {
     setPendingDoor(null);
     setPendingNpc(null);
     setHighlight(null);
+    setCurrentId(null);
+    setStatus("draft");
   };
 
-  const saveToLibrary = () => {
-    const data = exportLevel(cells, ulam, meta);
-    const lib = loadLibrary();
-    const id = `${meta.levelName}__${meta.levelNumber}`;
-    const existing = lib.findIndex((l) => l.id === id);
-    const entry: SavedLevel = { id, savedAt: Date.now(), data };
-    if (existing >= 0) lib[existing] = entry;
-    else lib.push(entry);
-    saveLibrary(lib);
-    setLibrary(lib);
-    setFlash({ msg: `Saved "${meta.levelName}" to library.`, tone: "info" });
+  const saveToLibrary = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const data = exportLevel(cells, ulam, meta);
+      const id = await upsertBuilderLevel({ id: currentId, data, status });
+      setCurrentId(id);
+      await refreshLibrary();
+      setFlash({ msg: `Saved "${meta.levelName}".`, tone: "info" });
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Save failed.", tone: "warn" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadFromLibrary = (sl: SavedLevel) => {
@@ -247,13 +273,42 @@ export function PraemBuilder() {
     setPendingDoor(null);
     setPendingNpc(null);
     setHighlight(null);
+    setCurrentId(sl.id);
+    setStatus((sl.status as LevelStatus) ?? "draft");
   };
 
-  const deleteFromLibrary = (id: string) => {
+  const deleteFromLibrary = async (id: string) => {
     if (!confirm("Delete this saved level?")) return;
-    const lib = loadLibrary().filter((l) => l.id !== id);
-    saveLibrary(lib);
-    setLibrary(lib);
+    try {
+      await deleteBuilderLevel(id);
+      if (currentId === id) setCurrentId(null);
+      await refreshLibrary();
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Delete failed.", tone: "warn" });
+    }
+  };
+
+  const publishToGame = async () => {
+    if (publishing) return;
+    if (meta.levelNumber == null || Number.isNaN(meta.levelNumber) || meta.levelNumber <= 0) {
+      setFlash({ msg: "Level number is required to publish.", tone: "warn" });
+      return;
+    }
+    if (!confirm(`Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
+      return;
+    }
+    setPublishing(true);
+    try {
+      const data = exportLevel(cells, ulam, meta);
+      await publishLevel(data);
+      setFlash({ msg: `Published Level ${meta.levelNumber} to the game.`, tone: "info" });
+    } catch (err) {
+      console.error(err);
+      setFlash({ msg: "Publish failed.", tone: "warn" });
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const exportJson = () => {
@@ -273,6 +328,8 @@ export function PraemBuilder() {
         setMeta(m);
         setManuallyEdited(false);
         setHighlight(null);
+        setCurrentId(null);
+        setStatus("draft");
         setFlash({ msg: `Imported "${m.levelName}".`, tone: "info" });
       } catch (err) {
         console.error(err);
