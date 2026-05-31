@@ -413,13 +413,28 @@ export function PraemBuilder() {
           {library.map((sl) => (
             <div
               key={sl.id}
-              className="group mb-1 flex items-center justify-between rounded-md border border-transparent px-2 py-2 hover:border-border hover:bg-card/60"
+              className={`group mb-1 flex items-center justify-between rounded-md border px-2 py-2 hover:bg-card/60 ${
+                currentId === sl.id
+                  ? "border-[color:var(--accent-gold)]/60 bg-[color:var(--accent-gold)]/5"
+                  : "border-transparent hover:border-border"
+              }`}
             >
               <button
                 className="flex-1 text-left"
                 onClick={() => loadFromLibrary(sl)}
               >
-                <div className="text-sm text-foreground">{sl.data.levelName}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm text-foreground">{sl.data.levelName}</span>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${
+                      sl.status === "ready"
+                        ? "bg-[color:var(--accent-gold)]/20 text-[color:var(--accent-gold)]"
+                        : "bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    {sl.status ?? "draft"}
+                  </span>
+                </div>
                 <div className="text-[10px] text-muted-foreground">
                   L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize}
                 </div>
@@ -445,7 +460,33 @@ export function PraemBuilder() {
           showNumbers={showNumbers}
           highlight={highlight}
           onCellClick={onCellClick}
+          rotation={rotation}
+          readOnly={rotation !== 0}
         />
+        {/* Dimension preview toggle */}
+        <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
+          {([
+            { v: 0, label: "Purple", color: "#b87bff" },
+            { v: 1, label: "Amber", color: "#f4c542" },
+            { v: 3, label: "Teal", color: "#14b8a6" },
+          ] as const).map((opt) => (
+            <button
+              key={opt.v}
+              onClick={() => setRotation(opt.v)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 transition ${
+                rotation === opt.v ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: opt.color }} />
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {rotation !== 0 && (
+          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-border bg-card/80 px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
+            Preview — edit in Purple
+          </div>
+        )}
         {flash && (
           <div
             className={`pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md border px-4 py-2 text-xs backdrop-blur ${
