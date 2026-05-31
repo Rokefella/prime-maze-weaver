@@ -167,6 +167,17 @@ export function generateMaze(params: GenParams): CellState[] {
   }
 
   // ----- Final connectivity guarantee -----
+  // Force the outer border to be wall by default. The designer can still
+  // paint over border cells later (e.g. to place a door flush on the edge);
+  // the connectivity check treats any non-WALL cell as walkable, so
+  // designer-placed openings remain valid.
+  for (let i = 0; i < size; i++) {
+    cells[idx(i, 0)] = { type: "WALL" };
+    cells[idx(i, size - 1)] = { type: "WALL" };
+    cells[idx(0, i)] = { type: "WALL" };
+    cells[idx(size - 1, i)] = { type: "WALL" };
+  }
+
   // Flood-fill from origin; any unreached corridor becomes wall.
   const reach = computeReachable(cells, size, { col: oc, row: orow });
   for (let i = 0; i < total; i++) {
