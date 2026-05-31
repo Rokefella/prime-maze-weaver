@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      builder_levels: {
+        Row: {
+          data: Json
+          grid_size: number
+          id: string
+          level_name: string
+          level_number: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          data: Json
+          grid_size: number
+          id?: string
+          level_name?: string
+          level_number?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          grid_size?: number
+          id?: string
+          level_name?: string
+          level_number?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      levels: {
+        Row: {
+          data: Json
+          grid_size: number
+          level_name: string
+          level_number: number
+          published_at: string
+        }
+        Insert: {
+          data: Json
+          grid_size: number
+          level_name: string
+          level_number: number
+          published_at?: string
+        }
+        Update: {
+          data?: Json
+          grid_size?: number
+          level_name?: string
+          level_number?: number
+          published_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
