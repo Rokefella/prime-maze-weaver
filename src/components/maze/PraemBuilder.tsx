@@ -644,7 +644,6 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
-          <Slider label="Density" value={density} onChange={setDensity} />
           <Slider label="Dead-ends" value={deadEnds} onChange={setDeadEnds} />
           <Slider label="Branching" value={branching} onChange={setBranching} />
           <button
