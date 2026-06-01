@@ -2,17 +2,15 @@ import type { CellState } from "./types";
 
 export interface GenParams {
   size: number;
-  density: number; // 0-100 walls vs open
   deadEnds: number; // 0-100
   branching: number; // 0-100
 }
 
-// Produces a fully-connected maze layout of walls and corridors.
-// Algorithm: randomized recursive backtracker carving on a step-2 lattice,
-// then optional braiding (dead-end removal / loop addition) controlled by
-// the density / deadEnds / branching sliders. A final flood-fill guarantees
-// every corridor cell is reachable from the origin; any isolated pocket is
-// converted back to wall.
+// Produces a classic "perfect maze" with 1-cell-wide corridors separated by
+// 1-cell-wide walls. Algorithm: randomized recursive backtracker carving on
+// a step-2 lattice. Optional braiding (dead-end removal) creates loops while
+// preserving connectivity. The generator NEVER creates open chambers or
+// blobs — open space is added manually by the designer afterwards.
 export function generateMaze(params: GenParams): CellState[] {
   const { size } = params;
   const total = size * size;
@@ -25,19 +23,25 @@ export function generateMaze(params: GenParams): CellState[] {
   const isCorridor = (c: number, r: number) =>
     inBounds(c, r) && cells[idx(c, r)].type === "CORRIDOR";
 
-  // Origin snapped to even coords so the step-2 lattice fits inside the grid.
-  const oc = Math.floor((size - 1) / 2) & ~1;
-  const orow = Math.floor((size - 1) / 2) & ~1;
+  // Carving lattice: corridors live on cells where (col,row) are both odd,
+  // walls on the in-between cells. This guarantees 1-cell corridors with
+  // 1-cell walls between them — never open blobs. Origin snapped to (1,1).
+  const oc = 1;
+  const orow = 1;
+
+  // Maximum odd index that still leaves a sealed outer wall.
+  const maxOdd = size % 2 === 0 ? size - 3 : size - 2;
 
   const visited = new Uint8Array(total);
   const stack: { c: number; r: number }[] = [{ c: oc, r: orow }];
   visited[idx(oc, orow)] = 1;
   cells[idx(oc, orow)] = { type: "CORRIDOR" };
 
-  // Branching: higher values bias the backtracker to keep exploring from
-  // its current cell (longer corridors with fewer immediate splits) vs.
-  // popping back early (more frequent junctions).
-  const branchBias = params.branching / 100;
+  // Branching: higher values cause the carver to abandon its current path
+  // more often, jumping back to an earlier stack frame and producing more
+  // frequent junctions. Low values keep it depth-first (long winding
+  // corridors with fewer junctions).
+  const branchProb = params.branching / 100;
 
   while (stack.length) {
     const cur = stack[stack.length - 1];
@@ -46,7 +50,14 @@ export function generateMaze(params: GenParams): CellState[] {
       { c: cur.c - 2, r: cur.r },
       { c: cur.c, r: cur.r + 2 },
       { c: cur.c, r: cur.r - 2 },
-    ].filter((n) => inBounds(n.c, n.r) && !visited[idx(n.c, n.r)]);
+    ].filter(
+      (n) =>
+        n.c >= 1 &&
+        n.c <= maxOdd &&
+        n.r >= 1 &&
+        n.r <= maxOdd &&
+        !visited[idx(n.c, n.r)],
+    );
 
     if (!candidates.length) {
       stack.pop();
@@ -62,35 +73,21 @@ export function generateMaze(params: GenParams): CellState[] {
     cells[idx((cur.c + next.c) / 2, (cur.r + next.r) / 2)] = { type: "CORRIDOR" };
     cells[idx(next.c, next.r)] = { type: "CORRIDOR" };
     visited[idx(next.c, next.r)] = 1;
+    stack.push(next);
 
-    // High branching => pop back to an earlier cell occasionally, opening
-    // new junctions away from the current frontier. Low branching => stay
-    // depth-first (long winding corridors).
-    if (stack.length > 2 && Math.random() > branchBias) {
-      // jump back to a random earlier point in the stack
-      const jumpTo = Math.floor(Math.random() * stack.length);
+    // Branching: occasionally jump back to a random earlier stack point so
+    // new carving starts from a different frontier (more junctions).
+    if (stack.length > 3 && Math.random() < branchProb) {
+      const jumpTo = Math.floor(Math.random() * (stack.length - 1));
       stack.length = jumpTo + 1;
     }
-    stack.push(next);
   }
 
-  // Fill any leftover odd-row/col fringe cell on even-sized grids by
-  // connecting it to an adjacent corridor (keeps connectivity).
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      if (cells[idx(c, r)].type !== "WALL") continue;
-      if (c === size - 1 || r === size - 1) {
-        // only fringe; skip - braiding may still open it
-      }
-    }
-  }
-
-  // ----- Braiding (loop addition / dead-end removal) -----
+  // ----- Braiding (dead-end removal) -----
   // A "dead-end" is a corridor with exactly one corridor neighbor.
+  // - High deadEnds => keep the perfect maze intact (many dead-ends).
   // - Low deadEnds  => remove most dead-ends by knocking out a wall to a
-  //   neighboring corridor (creates loops, still connected).
-  // - Low density   => additionally open extra walls between two existing
-  //   corridors, producing a more open layout.
+  //   neighboring corridor (creates loops, still connected, still 1-cell).
   const keepDeadEnds = params.deadEnds / 100; // 1 => keep all, 0 => remove all
   const removeProb = 1 - keepDeadEnds;
 
@@ -112,57 +109,23 @@ export function generateMaze(params: GenParams): CellState[] {
         if (cells[idx(c, r)].type !== "CORRIDOR") continue;
         if (corridorNeighbors(c, r).length !== 1) continue;
         if (Math.random() > removeProb) continue;
-        // pick a wall neighbor that has a corridor on the far side (or just
-        // any wall neighbor) and open it
-        const wallNeighbors = neighborOffsets
+        // Pick a wall neighbor that bridges to another corridor on the far
+        // side. Never open the outer-border walls.
+        const bridges = neighborOffsets
           .map(([dc, dr]) => ({ c: c + dc, r: r + dr }))
           .filter(
-            (n) => inBounds(n.c, n.r) && cells[idx(n.c, n.r)].type === "WALL",
+            (n) =>
+              n.c > 0 &&
+              n.c < size - 1 &&
+              n.r > 0 &&
+              n.r < size - 1 &&
+              cells[idx(n.c, n.r)].type === "WALL" &&
+              isCorridor(n.c + (n.c - c), n.r + (n.r - r)),
           );
-        if (!wallNeighbors.length) continue;
-        // prefer walls that bridge to another corridor on the far side
-        const bridges = wallNeighbors.filter((n) => {
-          const fc = n.c + (n.c - c);
-          const fr = n.r + (n.r - r);
-          return isCorridor(fc, fr);
-        });
-        const pick =
-          (bridges.length ? bridges : wallNeighbors)[
-            Math.floor(
-              Math.random() * (bridges.length ? bridges.length : wallNeighbors.length),
-            )
-          ];
+        if (!bridges.length) continue;
+        const pick = bridges[Math.floor(Math.random() * bridges.length)];
         cells[idx(pick.c, pick.r)] = { type: "CORRIDOR" };
       }
-    }
-  }
-
-  // Density: target corridor ratio. Low density (slider value) => more open.
-  // We only open walls that bridge two existing corridors so the maze
-  // stays connected.
-  const targetWallRatio = params.density / 100;
-  let wallCount = 0;
-  for (let i = 0; i < total; i++) if (cells[i].type === "WALL") wallCount++;
-  const currentWallRatio = wallCount / total;
-
-  if (targetWallRatio < currentWallRatio) {
-    const toOpen = Math.floor((currentWallRatio - targetWallRatio) * total);
-    // collect bridge-walls (wall cells with corridors on opposite sides
-    // OR with 2+ corridor neighbors) to keep connectivity
-    const bridgeWalls: number[] = [];
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (cells[idx(c, r)].type !== "WALL") continue;
-        if (corridorNeighbors(c, r).length >= 1) bridgeWalls.push(idx(c, r));
-      }
-    }
-    // shuffle
-    for (let i = bridgeWalls.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [bridgeWalls[i], bridgeWalls[j]] = [bridgeWalls[j], bridgeWalls[i]];
-    }
-    for (let k = 0; k < Math.min(toOpen, bridgeWalls.length); k++) {
-      cells[bridgeWalls[k]] = { type: "CORRIDOR" };
     }
   }
 
@@ -253,9 +216,13 @@ export function findOrigin(
 
 export const PRESETS: Record<
   "simple" | "medium" | "complex",
-  { density: number; deadEnds: number; branching: number }
+  { deadEnds: number; branching: number }
 > = {
-  simple: { density: 30, deadEnds: 20, branching: 70 },
-  medium: { density: 50, deadEnds: 50, branching: 50 },
-  complex: { density: 70, deadEnds: 75, branching: 30 },
+  // Simple: heavy braiding (few dead-ends) + low branching => open-feeling
+  // perfect maze with long, easy routes.
+  simple: { deadEnds: 20, branching: 20 },
+  // Medium: moderate dead-ends, moderate branching.
+  medium: { deadEnds: 55, branching: 50 },
+  // Complex: keep most dead-ends + high branching => dense, twisty.
+  complex: { deadEnds: 90, branching: 80 },
 };
