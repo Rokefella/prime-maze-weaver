@@ -32,10 +32,27 @@ export function generateMaze(params: GenParams): CellState[] {
   // Maximum odd index that still leaves a sealed outer wall.
   const maxOdd = size % 2 === 0 ? size - 3 : size - 2;
 
+  const mazeNodes: { c: number; r: number }[] = [];
+  for (let r = 1; r <= maxOdd; r += 2) {
+    for (let c = 1; c <= maxOdd; c += 2) {
+      mazeNodes.push({ c, r });
+    }
+  }
+
   const visited = new Uint8Array(total);
-  const stack: { c: number; r: number }[] = [{ c: oc, r: orow }];
-  visited[idx(oc, orow)] = 1;
-  cells[idx(oc, orow)] = { type: "CORRIDOR" };
+  const stack: { c: number; r: number }[] = [];
+  let visitedNodes = 0;
+
+  const visitNode = (node: { c: number; r: number }) => {
+    const i = idx(node.c, node.r);
+    if (visited[i]) return;
+    visited[i] = 1;
+    visitedNodes += 1;
+    cells[i] = { type: "CORRIDOR" };
+    stack.push(node);
+  };
+
+  if (mazeNodes.length) visitNode({ c: oc, r: orow });
 
   // Branching: higher values cause the carver to abandon its current path
   // more often, jumping back to an earlier stack frame and producing more
@@ -43,8 +60,47 @@ export function generateMaze(params: GenParams): CellState[] {
   // corridors with fewer junctions).
   const branchProb = params.branching / 100;
 
-  while (stack.length) {
-    const cur = stack[stack.length - 1];
+  const stepOffsets = [
+    [2, 0],
+    [-2, 0],
+    [0, 2],
+    [0, -2],
+  ] as const;
+
+  while (visitedNodes < mazeNodes.length) {
+    if (!stack.length) {
+      // Safety net: if all active frontiers are exhausted but any odd-lattice
+      // cell remains unvisited, reconnect to a neighboring visited node and
+      // continue. A correct backtracker should rarely need this, but it keeps
+      // the generation invariant explicit: every interior maze node is carved.
+      const unvisited = mazeNodes.filter((n) => !visited[idx(n.c, n.r)]);
+      const reconnectable = unvisited.filter((n) =>
+        stepOffsets.some(([dc, dr]) => visited[idx(n.c + dc, n.r + dr)]),
+      );
+      const pool = reconnectable.length ? reconnectable : unvisited;
+      const restart = pool[Math.floor(Math.random() * pool.length)];
+      const links = stepOffsets
+        .map(([dc, dr]) => ({ c: restart.c + dc, r: restart.r + dr }))
+        .filter(
+          (n) =>
+            n.c >= 1 &&
+            n.c <= maxOdd &&
+            n.r >= 1 &&
+            n.r <= maxOdd &&
+            visited[idx(n.c, n.r)],
+        );
+      const link = links[Math.floor(Math.random() * links.length)];
+      if (link) {
+        cells[idx((restart.c + link.c) / 2, (restart.r + link.r) / 2)] = { type: "CORRIDOR" };
+      }
+      visitNode(restart);
+      continue;
+    }
+
+    const activeIndex = stack.length > 1 && Math.random() < branchProb
+      ? Math.floor(Math.random() * stack.length)
+      : stack.length - 1;
+    const cur = stack[activeIndex];
     const candidates = [
       { c: cur.c + 2, r: cur.r },
       { c: cur.c - 2, r: cur.r },
@@ -60,7 +116,7 @@ export function generateMaze(params: GenParams): CellState[] {
     );
 
     if (!candidates.length) {
-      stack.pop();
+      stack.splice(activeIndex, 1);
       continue;
     }
 
@@ -71,16 +127,7 @@ export function generateMaze(params: GenParams): CellState[] {
     }
     const next = candidates[0];
     cells[idx((cur.c + next.c) / 2, (cur.r + next.r) / 2)] = { type: "CORRIDOR" };
-    cells[idx(next.c, next.r)] = { type: "CORRIDOR" };
-    visited[idx(next.c, next.r)] = 1;
-    stack.push(next);
-
-    // Branching: occasionally jump back to a random earlier stack point so
-    // new carving starts from a different frontier (more junctions).
-    if (stack.length > 3 && Math.random() < branchProb) {
-      const jumpTo = Math.floor(Math.random() * (stack.length - 1));
-      stack.length = jumpTo + 1;
-    }
+    visitNode(next);
   }
 
   // ----- Braiding (dead-end removal) -----
