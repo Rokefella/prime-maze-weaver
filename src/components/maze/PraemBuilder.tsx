@@ -587,10 +587,10 @@ export function PraemBuilder() {
             <input
               type="number"
               min={20}
-              max={150}
+              max={200}
               value={size}
               onChange={(e) => {
-                const v = Math.max(20, Math.min(150, parseInt(e.target.value || "20", 10)));
+                const v = Math.max(20, Math.min(200, parseInt(e.target.value || "20", 10)));
                 resizeGrid(v);
               }}
               className="w-20 rounded border border-border bg-background px-2 py-1"
