@@ -70,7 +70,6 @@ export function PraemBuilder() {
   const [tool, setTool] = useState<CellType>("WALL");
   const [showNumbers, setShowNumbers] = useState(false);
   const [meta, setMeta] = useState<LevelMeta>(defaultMeta);
-  const [density, setDensity] = useState(50);
   const [deadEnds, setDeadEnds] = useState(50);
   const [branching, setBranching] = useState(50);
   const [numFragments, setNumFragments] = useState(5);
@@ -197,7 +196,7 @@ export function PraemBuilder() {
     if (manuallyEdited && confirm("Regenerate base layout? This will overwrite your manual edits.") === false) {
       return;
     }
-    const next = generateMaze({ size, density, deadEnds, branching });
+    const next = generateMaze({ size, deadEnds, branching });
     setCells(next);
     setManuallyEdited(false);
     setFlash({ msg: "Layout generated.", tone: "info" });
@@ -205,7 +204,6 @@ export function PraemBuilder() {
 
   const applyPreset = (k: "simple" | "medium" | "complex") => {
     const p = PRESETS[k];
-    setDensity(p.density);
     setDeadEnds(p.deadEnds);
     setBranching(p.branching);
   };
