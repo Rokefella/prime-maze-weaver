@@ -33,6 +33,8 @@ const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
   { type: "BLUE_DOOR", swatch: PALETTE.blueDoor, label: CELL_LABELS.BLUE_DOOR },
   { type: "DOOR_TO_ROOM", swatch: PALETTE.doorToRoom, label: CELL_LABELS.DOOR_TO_ROOM },
   { type: "NPC", swatch: PALETTE.npc, label: CELL_LABELS.NPC },
+  { type: "VEIL", swatch: PALETTE.veil, label: CELL_LABELS.VEIL },
+  { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
 ];
 
 function makeBlankCells(size: number): CellState[] {
