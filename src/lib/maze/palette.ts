@@ -13,6 +13,9 @@ export const PALETTE = {
   blueDoor: "#3b82f6",
   doorToRoom: "#f59e0b",
   npc: "#14b8a6",
+  veil: "#251a3d",
+  veilMarker: "rgba(184,123,255,0.35)",
+  drop: "#22c55e",
   highlight: "#ffffff",
   hoverOutline: "rgba(255,255,255,0.6)",
 };
@@ -26,4 +29,6 @@ export const CELL_LABELS: Record<string, string> = {
   BLUE_DOOR: "Blue Door",
   DOOR_TO_ROOM: "Door to Room",
   NPC: "NPC",
+  VEIL: "Veil",
+  DROP: "Drop",
 };
