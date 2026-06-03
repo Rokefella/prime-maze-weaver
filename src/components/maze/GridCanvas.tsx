@@ -183,9 +183,30 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           case "NPC":
             fill = PALETTE.npc;
             break;
+          case "VEIL":
+            fill = PALETTE.veil;
+            break;
+          case "DROP":
+            fill = PALETTE.drop;
+            break;
         }
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
+
+        // Veil overlay: faint diagonal hint so designer can distinguish from wall
+        if (cell.type === "VEIL" && cellPx >= 4) {
+          ctx.fillStyle = PALETTE.veilMarker;
+          const s = Math.max(1, Math.floor(cellPx * 0.18));
+          ctx.fillRect(x + s, y + s, w - 2 * s, h - 2 * s);
+        }
+        // Drop overlay: small inner dot
+        if (cell.type === "DROP" && cellPx >= 6) {
+          ctx.fillStyle = "rgba(0,0,0,0.45)";
+          const r2 = Math.max(1, cellPx * 0.18);
+          ctx.beginPath();
+          ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
