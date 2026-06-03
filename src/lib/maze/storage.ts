@@ -14,6 +14,8 @@ export function exportLevel(
   const fragments: { col: number; row: number; prime: number }[] = [];
   const doorsToRoom: ExportedLevel["doorsToRoom"] = [];
   const npcs: ExportedLevel["npcs"] = [];
+  const veils: { col: number; row: number }[] = [];
+  const drops: { col: number; row: number }[] = [];
   let start: ExportedLevel["start"] = null;
   let goldenDoor: ExportedLevel["goldenDoor"] = null;
   let blueDoor: ExportedLevel["blueDoor"] = null;
@@ -62,6 +64,15 @@ export function exportLevel(
             npcs.push({ col: c, row: r, name: cell.npc.name });
           }
           break;
+        case "VEIL":
+          // Veils look like walls to the player but are walkable.
+          walls.push({ col: c, row: r });
+          veils.push({ col: c, row: r });
+          break;
+        case "DROP":
+          corridors.push({ col: c, row: r });
+          drops.push({ col: c, row: r });
+          break;
       }
     }
   }
@@ -85,6 +96,8 @@ export function exportLevel(
     blueDoor,
     doorsToRoom,
     npcs,
+    veils,
+    drops,
   };
 }
 
@@ -116,6 +129,8 @@ export function importLevel(data: ExportedLevel): {
     });
   for (const n of data.npcs)
     setCell(n.col, n.row, { type: "NPC", npc: { name: n.name } });
+  for (const v of data.veils ?? []) setCell(v.col, v.row, { type: "VEIL" });
+  for (const d of data.drops ?? []) setCell(d.col, d.row, { type: "DROP" });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)
     setCell(data.goldenDoor.col, data.goldenDoor.row, { type: "GOLDEN_DOOR" });
