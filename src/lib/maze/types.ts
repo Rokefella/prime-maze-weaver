@@ -6,7 +6,9 @@ export type CellType =
   | "START"
   | "BLUE_DOOR"
   | "DOOR_TO_ROOM"
-  | "NPC";
+  | "NPC"
+  | "VEIL"
+  | "DROP";
 
 export interface DoorToRoomData {
   roomId: string;
@@ -51,6 +53,8 @@ export interface ExportedLevel {
     reentry: { col: number; row: number };
   }[];
   npcs: { col: number; row: number; name: string }[];
+  veils: { col: number; row: number }[];
+  drops: { col: number; row: number }[];
 }
 
 export interface SavedLevel {
