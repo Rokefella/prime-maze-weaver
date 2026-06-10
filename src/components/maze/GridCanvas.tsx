@@ -16,13 +16,16 @@ interface Props {
   onCellHover?: (col: number, row: number | null) => void;
   rotation?: 0 | 1 | 2 | 3; // 0=Purple, 1=Amber (CCW), 3=Teal (CW)
   readOnly?: boolean;
+  routeA?: { col: number; row: number } | null;
+  routeB?: { col: number; row: number } | null;
+  routePath?: Set<number> | null;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false },
+  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -207,6 +210,11 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
           ctx.fill();
         }
+        // Route path overlay
+        if (routePath && routePath.has(i)) {
+          ctx.fillStyle = "rgba(255,140,40,0.55)";
+          ctx.fillRect(x, y, w, h);
+        }
       }
     }
 
@@ -271,7 +279,24 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         cellPx - 2,
       );
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation]);
+
+    // Route endpoints A (green) and B (red)
+    const drawEndpoint = (pt: { col: number; row: number }, color: string) => {
+      const d = toDisplay(pt.col, pt.row);
+      ctx.fillStyle = color;
+      ctx.fillRect(offset.x + d.col * cellPx, offset.y + d.row * cellPx, cellPx, cellPx);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        offset.x + d.col * cellPx + 1,
+        offset.y + d.row * cellPx + 1,
+        cellPx - 2,
+        cellPx - 2,
+      );
+    };
+    if (routeA) drawEndpoint(routeA, "#22c55e");
+    if (routeB) drawEndpoint(routeB, "#ef4444");
+  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation, routeA, routeB, routePath]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
