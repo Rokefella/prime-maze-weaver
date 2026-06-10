@@ -722,6 +722,54 @@ export function PraemBuilder() {
           </p>
         </Section>
 
+        <Section title="Route">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setRouteMode((v) => !v)}
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition ${
+                routeMode
+                  ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
+                  : "border-border hover:bg-card/60"
+              }`}
+            >
+              {routeMode ? "Route: ON" : "Route Tool"}
+            </button>
+            <button
+              onClick={clearRoute}
+              className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-card/60"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="mt-2 text-xs">
+            {!routeA && !routeB && (
+              <span className="text-muted-foreground">
+                {routeMode ? "Click a cell to set point A." : "Enable to measure path length."}
+              </span>
+            )}
+            {routeA && !routeB && (
+              <span className="text-muted-foreground">
+                A set at ({routeA.col},{routeA.row}). Click point B.
+              </span>
+            )}
+            {routeA && routeB && routeResult && (
+              <span>
+                {routeResult.steps >= 0 ? (
+                  <>
+                    <span className="text-foreground">Steps: </span>
+                    <span className="font-mono text-[color:var(--accent-gold)]">{routeResult.steps}</span>
+                  </>
+                ) : (
+                  <span className="text-destructive">No path</span>
+                )}
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            BFS over walkable cells. Walls and veils block. 4-directional.
+          </p>
+        </Section>
+
         <Section title="Complexity">
           <div className="mb-2 flex gap-1.5">
             {(["simple", "medium", "complex"] as const).map((k) => (
