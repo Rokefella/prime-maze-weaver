@@ -3,6 +3,7 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells } from "@/lib/maze/fragments";
+import { generateVillage, preserveManual } from "@/lib/maze/villageGenerator";
 import {
   exportLevel,
   importLevel,
@@ -210,6 +211,9 @@ export function PraemBuilder() {
   const [propMinLevel, setPropMinLevel] = useState(1);
   const [propName, setPropName] = useState("");
   const [propWhisper, setPropWhisper] = useState("");
+  const [vDensity, setVDensity] = useState(5);
+  const [vMix, setVMix] = useState(5);
+  const [vBorder, setVBorder] = useState(true);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
