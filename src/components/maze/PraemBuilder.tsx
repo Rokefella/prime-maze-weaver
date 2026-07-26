@@ -1111,23 +1111,6 @@ export function PraemBuilder() {
                   />
                 </label>
               )}
-              <label className="block">
-                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Visible from level:
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={propMinLevel}
-                  onChange={(e) =>
-                    setPropMinLevel(
-                      Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))),
-                    )
-                  }
-                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                />
-              </label>
             </div>
           )}
           <p className="mt-2 text-[10px] text-muted-foreground">
