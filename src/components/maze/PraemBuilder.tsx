@@ -181,6 +181,83 @@ const PROP_TYPES: CellType[] = [
   "LANDMARK",
 ];
 
+/** Shadow realm population: ghost zones, border and a central transfer point. */
+function generateShadowRealm(opts: {
+  size: number;
+  density: number;
+  atmosphere: number;
+  border: boolean;
+  prev: CellState[];
+}): CellState[] {
+  const { size, density, atmosphere, border, prev } = opts;
+  const total = size * size;
+  const cells: CellState[] = new Array(total);
+  for (let i = 0; i < total; i++) cells[i] = { type: "OPEN" };
+  const idx = (c: number, r: number) => r * size + c;
+  const inB = (c: number, r: number) => c >= 0 && r >= 0 && c < size && r < size;
+  const set = (c: number, r: number, type: CellType) => {
+    if (inB(c, r)) cells[idx(c, r)] = { type };
+  };
+
+  // Step 1 — border
+  if (border) {
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (r < 2 || c < 2 || r >= size - 2 || c >= size - 2) set(c, r, "GHOST_ZONE");
+      }
+    }
+  }
+
+  const cc = Math.floor(size / 2);
+  const cr = Math.floor(size / 2);
+
+  // Step 3 — ghost zones (before clearing the centre so it stays accessible)
+  const t = (density + atmosphere) / 2; // 1..10
+  const coverage = t <= 3.5 ? 0.175 : t <= 7 ? 0.35 : 0.65;
+  const clusterMax = t <= 3.5 ? 3 : t <= 7 ? 6 : 10;
+  const guard = t <= 3.5 ? 5 : t <= 7 ? 4 : 3; // half-size of protected centre area
+  const marginLo = border ? 2 : 0;
+  const marginHi = size - 1 - marginLo;
+  const fieldArea = Math.max(1, (marginHi - marginLo + 1) ** 2);
+  const target = Math.floor(fieldArea * coverage);
+  const nearCentre = (c: number, r: number) =>
+    Math.abs(c - cc) <= guard && Math.abs(r - cr) <= guard;
+
+  let placed = 0;
+  let attempts = 0;
+  while (placed < target && attempts < target * 40) {
+    attempts++;
+    let c = marginLo + Math.floor(Math.random() * (marginHi - marginLo + 1));
+    let r = marginLo + Math.floor(Math.random() * (marginHi - marginLo + 1));
+    if (nearCentre(c, r)) continue;
+    const clusterSize = 2 + Math.floor(Math.random() * clusterMax);
+    for (let k = 0; k < clusterSize; k++) {
+      if (!inB(c, r) || nearCentre(c, r)) break;
+      if (c < marginLo || r < marginLo || c > marginHi || r > marginHi) break;
+      if (cells[idx(c, r)].type !== "GHOST_ZONE") {
+        set(c, r, "GHOST_ZONE");
+        placed++;
+      }
+      const d = Math.floor(Math.random() * 4);
+      c += d === 0 ? 1 : d === 1 ? -1 : 0;
+      r += d === 2 ? 1 : d === 3 ? -1 : 0;
+    }
+  }
+
+  // Step 2 — transfer point at exact centre with a clear 3x3 around it
+  for (let r = cr - 1; r <= cr + 1; r++) {
+    for (let c = cc - 1; c <= cc + 1; c++) set(c, r, "OPEN");
+  }
+  set(cc, cr, "TRANSFER_POINT");
+
+  // Step 4 — preserve manual NPCs
+  for (let i = 0; i < prev.length && i < total; i++) {
+    if (prev[i].type === "NPC") cells[i] = prev[i];
+  }
+
+  return cells;
+}
+
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
@@ -214,6 +291,9 @@ export function PraemBuilder() {
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
   const [vBorder, setVBorder] = useState(true);
+  const [sDensity, setSDensity] = useState(4);
+  const [sAtmosphere, setSAtmosphere] = useState(5);
+  const [sBorder, setSBorder] = useState(true);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -457,6 +537,40 @@ export function PraemBuilder() {
     setVDensity(d);
     setVMix(m);
     runPopulate(d, m);
+  };
+
+  const runShadowPopulate = (density = sDensity, atmosphere = sAtmosphere) => {
+    const next = generateShadowRealm({
+      size,
+      density,
+      atmosphere,
+      border: sBorder,
+      prev: cells,
+    });
+    setCells(next);
+    setManuallyEdited(true);
+    setFlash({ msg: "Shadow realm populated.", tone: "info" });
+  };
+
+  const clearShadow = () => {
+    setCells((prev) => {
+      const next = makeBlankCells(size, "shadow_realm");
+      for (let i = 0; i < prev.length && i < next.length; i++) {
+        if (prev[i].type === "NPC" || prev[i].type === "TRANSFER_POINT") next[i] = prev[i];
+      }
+      return next;
+    });
+    setManuallyEdited(false);
+    setFlash({ msg: "Cleared to open ground.", tone: "info" });
+  };
+
+  const randomiseShadow = () => {
+    const jitter = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    const d = Math.max(1, Math.min(10, sDensity + jitter()));
+    const a = Math.max(1, Math.min(10, sAtmosphere + jitter()));
+    setSDensity(d);
+    setSAtmosphere(a);
+    runShadowPopulate(d, a);
   };
 
   const suggestFragments = () => {
@@ -725,7 +839,8 @@ export function PraemBuilder() {
               : null
           }
         />
-        {/* Dimension preview toggle */}
+        {/* Dimension preview toggle (maze mode only) */}
+        {mode === "maze" && (
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
           {([
             { v: 0, label: "Purple", color: "#b87bff" },
@@ -744,98 +859,10 @@ export function PraemBuilder() {
             </button>
           ))}
         </div>
+        )}
         {rotation !== 0 && (
           <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-border bg-card/80 px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
             Preview — edit in Purple
-          </div>
-        )}
-
-        {mode === "village" && rotation === 0 && (
-          <div className="absolute left-3 top-3 w-64 rounded-lg border border-border bg-card/90 p-3 backdrop-blur">
-            <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
-              Village Population
-            </div>
-
-            <label className="text-xs text-muted-foreground">Density</label>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={vDensity}
-              onChange={(e) => setVDensity(parseInt(e.target.value, 10))}
-              className="w-full accent-[color:var(--accent-gold)]"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>Open</span>
-              <span>{vDensity}</span>
-              <span>Dense</span>
-            </div>
-
-            <label className="mt-2 block text-xs text-muted-foreground">Building mix</label>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={vMix}
-              onChange={(e) => setVMix(parseInt(e.target.value, 10))}
-              className="w-full accent-[color:var(--accent-gold)]"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>Small</span>
-              <span>{vMix}</span>
-              <span>Large</span>
-            </div>
-
-            <label className="mt-2 flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={vBorder}
-                onChange={(e) => setVBorder(e.target.checked)}
-              />
-              <span>Border wall</span>
-            </label>
-
-            <div className="mt-3 flex items-stretch gap-2">
-              <button
-                onClick={() => runPopulate()}
-                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
-                style={{
-                  border: "1px solid #c8963a",
-                  color: "#c8963a",
-                  background: "rgba(200,150,58,0.08)",
-                }}
-              >
-                Populate
-              </button>
-              <button
-                onClick={randomisePopulate}
-                title="Randomise & populate"
-                className="rounded-md px-3 text-sm transition hover:brightness-125"
-                style={{
-                  border: "1px solid #c8963a",
-                  color: "#c8963a",
-                  background: "rgba(200,150,58,0.08)",
-                }}
-              >
-                ↺
-              </button>
-              <button
-                onClick={clearVillage}
-                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
-                style={{
-                  border: "0.5px solid rgba(100,80,160,0.3)",
-                  color: "rgba(160,140,200,0.5)",
-                  background: "transparent",
-                }}
-              >
-                Clear
-              </button>
-            </div>
-            <p className="mt-2" style={{ color: "rgba(160,140,200,0.4)", fontSize: 11 }}>
-              Manual placements (NPCs, whispers, special buildings) are preserved.
-            </p>
           </div>
         )}
 
@@ -1198,6 +1225,176 @@ export function PraemBuilder() {
             ))}
           </div>
         </Section></>
+        )}
+
+        {mode === "village" && (
+          <Section title="Village Population">
+            <label className="text-xs text-muted-foreground">Density</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vDensity}
+              onChange={(e) => setVDensity(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Open</span>
+              <span>{vDensity}</span>
+              <span>Dense</span>
+            </div>
+
+            <label className="mt-2 block text-xs text-muted-foreground">Building mix</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vMix}
+              onChange={(e) => setVMix(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Small</span>
+              <span>{vMix}</span>
+              <span>Large</span>
+            </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={vBorder}
+                onChange={(e) => setVBorder(e.target.checked)}
+              />
+              <span>Border wall</span>
+            </label>
+
+            <div className="mt-3 flex items-stretch gap-2">
+              <button
+                onClick={() => runPopulate()}
+                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                Populate
+              </button>
+              <button
+                onClick={randomisePopulate}
+                title="Randomise & populate"
+                className="rounded-md px-3 text-sm transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={clearVillage}
+                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
+                style={{
+                  border: "0.5px solid rgba(100,80,160,0.3)",
+                  color: "rgba(160,140,200,0.5)",
+                  background: "transparent",
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2" style={{ color: "rgba(160,140,200,0.4)", fontSize: 11 }}>
+              Manual placements (NPCs, whispers, special buildings) are preserved.
+            </p>
+          </Section>
+        )}
+
+        {mode === "shadow_realm" && (
+          <Section title="Shadow Population">
+            <label className="text-xs text-muted-foreground">Density</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={sDensity}
+              onChange={(e) => setSDensity(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Sparse</span>
+              <span>{sDensity}</span>
+              <span>Dense</span>
+            </div>
+
+            <label className="mt-2 block text-xs text-muted-foreground">Atmosphere</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={sAtmosphere}
+              onChange={(e) => setSAtmosphere(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Open</span>
+              <span>{sAtmosphere}</span>
+              <span>Oppressive</span>
+            </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={sBorder}
+                onChange={(e) => setSBorder(e.target.checked)}
+              />
+              <span>Border</span>
+            </label>
+
+            <div className="mt-3 flex items-stretch gap-2">
+              <button
+                onClick={() => runShadowPopulate()}
+                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                Populate
+              </button>
+              <button
+                onClick={randomiseShadow}
+                title="Randomise & populate"
+                className="rounded-md px-3 text-sm transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={clearShadow}
+                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
+                style={{
+                  border: "0.5px solid rgba(100,80,160,0.3)",
+                  color: "rgba(160,140,200,0.5)",
+                  background: "transparent",
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2" style={{ color: "rgba(200,100,100,0.4)", fontSize: 11 }}>
+              Manually placed NPCs and transfer point are preserved.
+            </p>
+          </Section>
         )}
 
         <Section title="Level Metadata">
