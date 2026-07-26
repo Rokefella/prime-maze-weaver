@@ -136,15 +136,16 @@ function bfsPath(
   return path;
 }
 
-function makeBlankCells(size: number): CellState[] {
+function makeBlankCells(size: number, mode: BuilderMode = "maze"): CellState[] {
   const total = size * size;
   const cells: CellState[] = new Array(total);
-  for (let i = 0; i < total; i++) cells[i] = { type: "CORRIDOR" };
+  const base: CellType = mode === "maze" ? "CORRIDOR" : "OPEN";
+  for (let i = 0; i < total; i++) cells[i] = { type: base };
   return cells;
 }
 
 function defaultMeta(): LevelMeta {
-  return { levelNumber: 1, levelName: "Untitled", requiredFragments: 0, notes: "" };
+  return { levelNumber: 1, levelName: "Untitled", requiredFragments: 0, notes: "", mode: "maze" };
 }
 
 interface Flash {
