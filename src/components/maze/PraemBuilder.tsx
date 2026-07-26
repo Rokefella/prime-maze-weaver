@@ -24,7 +24,19 @@ import type {
   SavedLevel,
   ExportedLevel,
 } from "@/lib/maze/types";
-import { CELL_LABELS, PALETTE, swatchFor } from "@/lib/maze/palette";
+import { CELL_LABELS, PALETTE, swatchFor, PRAEM_CHARACTERS } from "@/lib/maze/palette";
+
+const CHAR_SELECT_STYLE: React.CSSProperties = {
+  background: "#0d0d1a",
+  border: "0.5px solid rgba(100,80,160,0.4)",
+  color: "#e0ddd5",
+  fontFamily: "var(--font-display, 'Cinzel', serif)",
+  fontSize: "11px",
+  letterSpacing: "0.1em",
+  padding: "4px 6px",
+  width: "100%",
+  borderRadius: "4px",
+};
 
 const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "CORRIDOR", swatch: PALETTE.corridor, label: CELL_LABELS.CORRIDOR },
@@ -285,8 +297,7 @@ export function PraemBuilder() {
   const [paintMode, setPaintMode] = useState<"cell" | "rect">("cell");
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
-  const [propMinLevel, setPropMinLevel] = useState(1);
-  const [propName, setPropName] = useState("");
+  const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
   const [propWhisper, setPropWhisper] = useState("");
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -372,12 +383,11 @@ export function PraemBuilder() {
       const makeCell = (): CellState => {
         const base: CellState = { type: tool };
         if (PROP_TYPES.includes(tool)) {
-          base.min_level = propMinLevel;
           if (tool === "NPC" || tool === "LANDMARK") {
             if (propName.trim()) base.npc = { name: propName.trim() };
           }
           if (tool === "WHISPER") {
-            base.whisper = { text: propWhisper, min_level: propMinLevel };
+            base.whisper = { text: propWhisper };
           }
         }
         return base;
@@ -476,7 +486,7 @@ export function PraemBuilder() {
       }
 
       if (tool === "NPC" && mode === "maze") {
-        setPendingNpc({ col, row, name: "" });
+        setPendingNpc({ col, row, name: PRAEM_CHARACTERS[0] });
         return;
       }
 
@@ -493,7 +503,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propMinLevel, propName, propWhisper],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propWhisper],
   );
 
   const runGenerate = () => {
@@ -931,15 +941,21 @@ export function PraemBuilder() {
             <div className="mb-2 font-medium">
               NPC @ ({pendingNpc.col},{pendingNpc.row})
             </div>
-            <label className="mb-1 block text-xs text-muted-foreground">Name</label>
-            <input
-              autoFocus
-              value={pendingNpc.name}
-              onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && confirmNpc()}
-              placeholder="The Painter"
-              className="mb-3 w-64 rounded-md border border-border bg-background px-2 py-1 text-sm"
-            />
+            <label className="mb-1 block text-xs text-muted-foreground">Character</label>
+            <div className="mb-3 w-64">
+              <select
+                autoFocus
+                value={pendingNpc.name}
+                onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
+                style={CHAR_SELECT_STYLE}
+              >
+                {PRAEM_CHARACTERS.map((n) => (
+                  <option key={n} value={n} style={{ background: "#0d0d1a" }}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={confirmNpc}
@@ -1052,12 +1068,30 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
-          {mode === "village" && PROP_TYPES.includes(tool) && (
+          {mode !== "maze" && PROP_TYPES.includes(tool) && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
                 {CELL_LABELS[tool] ?? tool} properties
               </div>
-              {(tool === "NPC" || tool === "LANDMARK") && (
+              {tool === "NPC" && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Character
+                  </span>
+                  <select
+                    value={propName}
+                    onChange={(e) => setPropName(e.target.value)}
+                    style={CHAR_SELECT_STYLE}
+                  >
+                    {PRAEM_CHARACTERS.map((n) => (
+                      <option key={n} value={n} style={{ background: "#0d0d1a" }}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {tool === "LANDMARK" && (
                 <label className="mb-2 block">
                   <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                     Name
@@ -1083,23 +1117,6 @@ export function PraemBuilder() {
                   />
                 </label>
               )}
-              <label className="block">
-                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Visible from level:
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={propMinLevel}
-                  onChange={(e) =>
-                    setPropMinLevel(
-                      Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))),
-                    )
-                  }
-                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                />
-              </label>
             </div>
           )}
           <p className="mt-2 text-[10px] text-muted-foreground">

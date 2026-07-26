@@ -145,3 +145,30 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
   }
   return PALETTE.corridor;
 }
+/** Known PRÆM characters selectable for NPC cells. */
+export const PRAEM_CHARACTERS = [
+  "Bernard",
+  "The Painter",
+  "The Hacker",
+  "The Priest",
+  "The Mayor",
+  "The Chef",
+  "The Architect",
+  "Alexandra",
+] as const;
+
+export const CHARACTER_ABBR: Record<string, string> = {
+  Bernard: "BRN",
+  "The Painter": "PNT",
+  "The Hacker": "HCK",
+  "The Priest": "PRS",
+  "The Mayor": "MYR",
+  "The Chef": "CHF",
+  "The Architect": "ARC",
+  Alexandra: "ALX",
+};
+
+export function abbrevCharacter(name?: string): string {
+  if (!name) return "";
+  return CHARACTER_ABBR[name] ?? name.slice(0, 3).toUpperCase();
+}
