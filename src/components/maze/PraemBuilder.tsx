@@ -839,11 +839,6 @@ export function PraemBuilder() {
           </div>
         )}
 
-        {false && (
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-border bg-card/80 px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
-            Preview — edit in Purple
-          </div>
-        )}
         {flash && (
           <div
             className={`pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md border px-4 py-2 text-xs backdrop-blur ${
