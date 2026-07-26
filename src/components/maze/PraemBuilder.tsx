@@ -868,7 +868,8 @@ export function PraemBuilder() {
           </p>
         </Section>
 
-        <Section title="Complexity">
+        {mode === "maze" && (
+        <><Section title="Complexity">
           <div className="mb-2 flex gap-1.5">
             {(["simple", "medium", "complex"] as const).map((k) => (
               <button
@@ -932,7 +933,8 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
-        </Section>
+        </Section></>
+        )}
 
         <Section title="Level Metadata">
           <Field label="Level #">
