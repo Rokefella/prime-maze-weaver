@@ -181,6 +181,83 @@ const PROP_TYPES: CellType[] = [
   "LANDMARK",
 ];
 
+/** Shadow realm population: ghost zones, border and a central transfer point. */
+function generateShadowRealm(opts: {
+  size: number;
+  density: number;
+  atmosphere: number;
+  border: boolean;
+  prev: CellState[];
+}): CellState[] {
+  const { size, density, atmosphere, border, prev } = opts;
+  const total = size * size;
+  const cells: CellState[] = new Array(total);
+  for (let i = 0; i < total; i++) cells[i] = { type: "OPEN" };
+  const idx = (c: number, r: number) => r * size + c;
+  const inB = (c: number, r: number) => c >= 0 && r >= 0 && c < size && r < size;
+  const set = (c: number, r: number, type: CellType) => {
+    if (inB(c, r)) cells[idx(c, r)] = { type };
+  };
+
+  // Step 1 — border
+  if (border) {
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (r < 2 || c < 2 || r >= size - 2 || c >= size - 2) set(c, r, "GHOST_ZONE");
+      }
+    }
+  }
+
+  const cc = Math.floor(size / 2);
+  const cr = Math.floor(size / 2);
+
+  // Step 3 — ghost zones (before clearing the centre so it stays accessible)
+  const t = (density + atmosphere) / 2; // 1..10
+  const coverage = t <= 3.5 ? 0.175 : t <= 7 ? 0.35 : 0.65;
+  const clusterMax = t <= 3.5 ? 3 : t <= 7 ? 6 : 10;
+  const guard = t <= 3.5 ? 5 : t <= 7 ? 4 : 3; // half-size of protected centre area
+  const marginLo = border ? 2 : 0;
+  const marginHi = size - 1 - marginLo;
+  const fieldArea = Math.max(1, (marginHi - marginLo + 1) ** 2);
+  const target = Math.floor(fieldArea * coverage);
+  const nearCentre = (c: number, r: number) =>
+    Math.abs(c - cc) <= guard && Math.abs(r - cr) <= guard;
+
+  let placed = 0;
+  let attempts = 0;
+  while (placed < target && attempts < target * 40) {
+    attempts++;
+    let c = marginLo + Math.floor(Math.random() * (marginHi - marginLo + 1));
+    let r = marginLo + Math.floor(Math.random() * (marginHi - marginLo + 1));
+    if (nearCentre(c, r)) continue;
+    const clusterSize = 2 + Math.floor(Math.random() * clusterMax);
+    for (let k = 0; k < clusterSize; k++) {
+      if (!inB(c, r) || nearCentre(c, r)) break;
+      if (c < marginLo || r < marginLo || c > marginHi || r > marginHi) break;
+      if (cells[idx(c, r)].type !== "GHOST_ZONE") {
+        set(c, r, "GHOST_ZONE");
+        placed++;
+      }
+      const d = Math.floor(Math.random() * 4);
+      c += d === 0 ? 1 : d === 1 ? -1 : 0;
+      r += d === 2 ? 1 : d === 3 ? -1 : 0;
+    }
+  }
+
+  // Step 2 — transfer point at exact centre with a clear 3x3 around it
+  for (let r = cr - 1; r <= cr + 1; r++) {
+    for (let c = cc - 1; c <= cc + 1; c++) set(c, r, "OPEN");
+  }
+  set(cc, cr, "TRANSFER_POINT");
+
+  // Step 4 — preserve manual NPCs
+  for (let i = 0; i < prev.length && i < total; i++) {
+    if (prev[i].type === "NPC") cells[i] = prev[i];
+  }
+
+  return cells;
+}
+
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
