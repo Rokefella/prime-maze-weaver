@@ -288,7 +288,7 @@ export function PraemBuilder() {
       if (e.button === 2) {
         setCells((prev) => {
           const next = prev.slice();
-          next[idx] = { type: "CORRIDOR" };
+          next[idx] = { type: mode === "maze" ? "CORRIDOR" : "OPEN" };
           return next;
         });
         setManuallyEdited(true);
@@ -347,7 +347,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode],
   );
 
   const runGenerate = () => {
@@ -395,8 +395,8 @@ export function PraemBuilder() {
 
   const newLevel = () => {
     if (manuallyEdited && !confirm("Discard current level and start fresh?")) return;
-    setCells(makeBlankCells(size));
-    setMeta(defaultMeta());
+    setCells(makeBlankCells(size, mode));
+    setMeta({ ...defaultMeta(), mode });
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
