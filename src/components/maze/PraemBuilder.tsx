@@ -623,6 +623,7 @@ export function PraemBuilder() {
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
+          mode={mode}
         />
         {/* Dimension preview toggle */}
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
@@ -742,6 +743,32 @@ export function PraemBuilder() {
 
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
+        <Section title="Mode">
+          <div className="flex gap-1.5">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => changeMode(m.key)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                  mode === m.key
+                    ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
+                    : "border-border text-muted-foreground hover:bg-card/60"
+                }`}
+              >
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: m.color }} />
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {mode === "maze"
+              ? "Ulam spiral maze with primes, fragments and doors."
+              : mode === "village"
+                ? "Open village layout: buildings, forest, paths and transfer points."
+                : "Shadow Realm: ghost zones, eyes and transfer points."}
+          </p>
+        </Section>
+
         <Section title="Grid">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Size</span>
