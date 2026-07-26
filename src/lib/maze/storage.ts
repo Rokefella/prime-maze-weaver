@@ -54,14 +54,12 @@ export function exportLevel(
           type: cell.type,
           ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
           ...(cell.whisper ? { whisper: cell.whisper } : {}),
-          ...(cell.min_level != null ? { min_level: cell.min_level } : {}),
         });
         if (cell.type === "WHISPER") {
           whispers.push({
             col: c,
             row: r,
             text: cell.whisper?.text ?? "",
-            min_level: cell.whisper?.min_level ?? cell.min_level ?? 1,
           });
         }
         if (cell.type === "LANDMARK") {
@@ -69,7 +67,6 @@ export function exportLevel(
             col: c,
             row: r,
             name: cell.npc?.name ?? "",
-            min_level: cell.min_level ?? 1,
           });
         }
         continue;
@@ -115,7 +112,6 @@ export function exportLevel(
               col: c,
               row: r,
               name: cell.npc.name,
-              ...(cell.min_level != null ? { min_level: cell.min_level } : {}),
             });
           }
           break;
@@ -190,7 +186,6 @@ export function importLevel(data: ExportedLevel): {
     setCell(n.col, n.row, {
       type: "NPC",
       npc: { name: n.name },
-      ...(n.min_level != null ? { min_level: n.min_level } : {}),
     });
   for (const v of data.veils ?? []) setCell(v.col, v.row, { type: "VEIL" });
   for (const d of data.drops ?? []) setCell(d.col, d.row, { type: "DROP" });
@@ -199,7 +194,6 @@ export function importLevel(data: ExportedLevel): {
       type: e.type,
       ...(e.name || e.npc_name ? { npc: { name: (e.name ?? e.npc_name)! } } : {}),
       ...(e.whisper ? { whisper: e.whisper } : {}),
-      ...(e.min_level != null ? { min_level: e.min_level } : {}),
     });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)
