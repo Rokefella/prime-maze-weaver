@@ -459,12 +459,6 @@ export function PraemBuilder() {
     runPopulate(d, m);
   };
 
-  const unusedApplyPreset = (k: "simple" | "medium" | "complex") => {
-    const p = PRESETS[k];
-    setDeadEnds(p.deadEnds);
-    setBranching(p.branching);
-  };
-
   const suggestFragments = () => {
     const origin = findOrigin(cells, size);
     const reach = origin ? computeReachable(cells, size, origin) : undefined;
