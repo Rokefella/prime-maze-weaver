@@ -39,7 +39,6 @@ export interface NpcData {
 
 export interface WhisperData {
   text: string;
-  min_level: number;
 }
 
 export interface CellState {
@@ -47,7 +46,6 @@ export interface CellState {
   door?: DoorToRoomData;
   npc?: NpcData;
   whisper?: WhisperData;
-  min_level?: number;
 }
 
 export interface LevelMeta {
@@ -79,11 +77,11 @@ export interface ExportedLevel {
     roomId: string;
     reentry: { col: number; row: number };
   }[];
-  npcs: { col: number; row: number; name: string; min_level?: number }[];
+  npcs: { col: number; row: number; name: string }[];
   veils: { col: number; row: number }[];
   drops: { col: number; row: number }[];
-  whispers: { col: number; row: number; text: string; min_level: number }[];
-  landmarks: { col: number; row: number; name: string; min_level: number }[];
+  whispers: { col: number; row: number; text: string }[];
+  landmarks: { col: number; row: number; name: string }[];
   /** Cells belonging to non-maze modes (village / shadow realm). */
   extraCells?: {
     col: number;
@@ -92,7 +90,6 @@ export interface ExportedLevel {
     name?: string;
     npc_name?: string;
     whisper?: WhisperData;
-    min_level?: number;
   }[];
 }
 
