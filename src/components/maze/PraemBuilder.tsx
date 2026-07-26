@@ -432,6 +432,39 @@ export function PraemBuilder() {
     setBranching(p.branching);
   };
 
+  const runPopulate = (density = vDensity, mix = vMix) => {
+    const generated = generateVillage({
+      size,
+      density,
+      buildingMix: mix,
+      borderWall: vBorder,
+    });
+    setCells((prev) => preserveManual(prev, generated));
+    setManuallyEdited(true);
+    setFlash({ msg: "Village populated.", tone: "info" });
+  };
+
+  const clearVillage = () => {
+    setCells(makeBlankCells(size, "village"));
+    setManuallyEdited(false);
+    setFlash({ msg: "Cleared to open ground.", tone: "info" });
+  };
+
+  const randomisePopulate = () => {
+    const jitter = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    const d = Math.max(1, Math.min(10, vDensity + jitter()));
+    const m = Math.max(1, Math.min(10, vMix + jitter()));
+    setVDensity(d);
+    setVMix(m);
+    runPopulate(d, m);
+  };
+
+  const unusedApplyPreset = (k: "simple" | "medium" | "complex") => {
+    const p = PRESETS[k];
+    setDeadEnds(p.deadEnds);
+    setBranching(p.branching);
+  };
+
   const suggestFragments = () => {
     const origin = findOrigin(cells, size);
     const reach = origin ? computeReachable(cells, size, origin) : undefined;
