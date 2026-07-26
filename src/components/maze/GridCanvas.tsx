@@ -277,6 +277,13 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.arc(x + w / 2, y + h / 2, Math.max(2, cellPx * 0.3), 0, Math.PI * 2);
             ctx.stroke();
           }
+          if (cell.type === "NPC" && cell.npc?.name && cellPx >= 9) {
+            ctx.fillStyle = "rgba(160,140,200,0.8)";
+            ctx.font = "8px ui-monospace, monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(abbrevCharacter(cell.npc.name), x + w / 2, y + h / 2);
+          }
           if (routePath && routePath.has(i)) {
             ctx.fillStyle = "rgba(255,140,40,0.55)";
             ctx.fillRect(x, y, w, h);
