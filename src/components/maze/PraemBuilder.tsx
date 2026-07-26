@@ -291,6 +291,9 @@ export function PraemBuilder() {
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
   const [vBorder, setVBorder] = useState(true);
+  const [sDensity, setSDensity] = useState(4);
+  const [sAtmosphere, setSAtmosphere] = useState(5);
+  const [sBorder, setSBorder] = useState(true);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -534,6 +537,40 @@ export function PraemBuilder() {
     setVDensity(d);
     setVMix(m);
     runPopulate(d, m);
+  };
+
+  const runShadowPopulate = (density = sDensity, atmosphere = sAtmosphere) => {
+    const next = generateShadowRealm({
+      size,
+      density,
+      atmosphere,
+      border: sBorder,
+      prev: cells,
+    });
+    setCells(next);
+    setManuallyEdited(true);
+    setFlash({ msg: "Shadow realm populated.", tone: "info" });
+  };
+
+  const clearShadow = () => {
+    setCells((prev) => {
+      const next = makeBlankCells(size, "shadow_realm");
+      for (let i = 0; i < prev.length && i < next.length; i++) {
+        if (prev[i].type === "NPC" || prev[i].type === "TRANSFER_POINT") next[i] = prev[i];
+      }
+      return next;
+    });
+    setManuallyEdited(false);
+    setFlash({ msg: "Cleared to open ground.", tone: "info" });
+  };
+
+  const randomiseShadow = () => {
+    const jitter = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    const d = Math.max(1, Math.min(10, sDensity + jitter()));
+    const a = Math.max(1, Math.min(10, sAtmosphere + jitter()));
+    setSDensity(d);
+    setSAtmosphere(a);
+    runShadowPopulate(d, a);
   };
 
   const suggestFragments = () => {
