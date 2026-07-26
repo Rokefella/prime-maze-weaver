@@ -839,7 +839,8 @@ export function PraemBuilder() {
               : null
           }
         />
-        {/* Dimension preview toggle */}
+        {/* Dimension preview toggle (maze mode only) */}
+        {mode === "maze" && (
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
           {([
             { v: 0, label: "Purple", color: "#b87bff" },
@@ -858,6 +859,7 @@ export function PraemBuilder() {
             </button>
           ))}
         </div>
+        )}
         {rotation !== 0 && (
           <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border border-border bg-card/80 px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
             Preview — edit in Purple
