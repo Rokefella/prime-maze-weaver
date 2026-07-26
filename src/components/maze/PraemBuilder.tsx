@@ -486,7 +486,7 @@ export function PraemBuilder() {
       }
 
       if (tool === "NPC" && mode === "maze") {
-        setPendingNpc({ col, row, name: "" });
+        setPendingNpc({ col, row, name: PRAEM_CHARACTERS[0] });
         return;
       }
 
@@ -941,15 +941,21 @@ export function PraemBuilder() {
             <div className="mb-2 font-medium">
               NPC @ ({pendingNpc.col},{pendingNpc.row})
             </div>
-            <label className="mb-1 block text-xs text-muted-foreground">Name</label>
-            <input
-              autoFocus
-              value={pendingNpc.name}
-              onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
-              onKeyDown={(e) => e.key === "Enter" && confirmNpc()}
-              placeholder="The Painter"
-              className="mb-3 w-64 rounded-md border border-border bg-background px-2 py-1 text-sm"
-            />
+            <label className="mb-1 block text-xs text-muted-foreground">Character</label>
+            <div className="mb-3 w-64">
+              <select
+                autoFocus
+                value={pendingNpc.name}
+                onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
+                style={CHAR_SELECT_STYLE}
+              >
+                {PRAEM_CHARACTERS.map((n) => (
+                  <option key={n} value={n} style={{ background: "#0d0d1a" }}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={confirmNpc}
