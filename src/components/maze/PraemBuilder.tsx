@@ -24,7 +24,19 @@ import type {
   SavedLevel,
   ExportedLevel,
 } from "@/lib/maze/types";
-import { CELL_LABELS, PALETTE, swatchFor } from "@/lib/maze/palette";
+import { CELL_LABELS, PALETTE, swatchFor, PRAEM_CHARACTERS } from "@/lib/maze/palette";
+
+const CHAR_SELECT_STYLE: React.CSSProperties = {
+  background: "#0d0d1a",
+  border: "0.5px solid rgba(100,80,160,0.4)",
+  color: "#e0ddd5",
+  fontFamily: "var(--font-display, 'Cinzel', serif)",
+  fontSize: "11px",
+  letterSpacing: "0.1em",
+  padding: "4px 6px",
+  width: "100%",
+  borderRadius: "4px",
+};
 
 const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "CORRIDOR", swatch: PALETTE.corridor, label: CELL_LABELS.CORRIDOR },
@@ -285,8 +297,7 @@ export function PraemBuilder() {
   const [paintMode, setPaintMode] = useState<"cell" | "rect">("cell");
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
-  const [propMinLevel, setPropMinLevel] = useState(1);
-  const [propName, setPropName] = useState("");
+  const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
   const [propWhisper, setPropWhisper] = useState("");
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -372,12 +383,11 @@ export function PraemBuilder() {
       const makeCell = (): CellState => {
         const base: CellState = { type: tool };
         if (PROP_TYPES.includes(tool)) {
-          base.min_level = propMinLevel;
           if (tool === "NPC" || tool === "LANDMARK") {
             if (propName.trim()) base.npc = { name: propName.trim() };
           }
           if (tool === "WHISPER") {
-            base.whisper = { text: propWhisper, min_level: propMinLevel };
+            base.whisper = { text: propWhisper };
           }
         }
         return base;
@@ -493,7 +503,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propMinLevel, propName, propWhisper],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propWhisper],
   );
 
   const runGenerate = () => {
