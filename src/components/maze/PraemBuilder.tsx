@@ -40,18 +40,20 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
 
 const VILLAGE_TYPES: CellType[] = [
   "OPEN",
+  "SQUARE",
+  "ROAD",
   "PATH",
-  "FOREST",
   "BUILDING_S",
   "BUILDING_M",
   "BUILDING_L",
   "BUILDING_23",
   "BUILDING_47",
   "BUILDING_89",
-  "EYE",
-  "TRANSFER_POINT",
+  "FOREST",
   "NPC",
-  "DROP",
+  "WHISPER",
+  "LANDMARK",
+  "EYE",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -95,6 +97,10 @@ const WALKABLE_FOR_ROUTE: Record<string, true> = {
   EYE: true,
   TRANSFER_POINT: true,
   GHOST_ZONE: true,
+  SQUARE: true,
+  ROAD: true,
+  LANDMARK: true,
+  WHISPER: true,
 };
 
 function bfsPath(
@@ -164,6 +170,15 @@ interface PendingNpc {
   row: number;
   name: string;
 }
+
+const PROP_TYPES: CellType[] = [
+  "NPC",
+  "WHISPER",
+  "BUILDING_23",
+  "BUILDING_47",
+  "BUILDING_89",
+  "LANDMARK",
+];
 
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
