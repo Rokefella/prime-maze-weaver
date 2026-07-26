@@ -16,15 +16,16 @@ import {
   type LevelStatus,
 } from "@/lib/maze/supabaseLibrary";
 import type {
+  BuilderMode,
   CellState,
   CellType,
   LevelMeta,
   SavedLevel,
   ExportedLevel,
 } from "@/lib/maze/types";
-import { CELL_LABELS, PALETTE } from "@/lib/maze/palette";
+import { CELL_LABELS, PALETTE, swatchFor } from "@/lib/maze/palette";
 
-const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
+const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "CORRIDOR", swatch: PALETTE.corridor, label: CELL_LABELS.CORRIDOR },
   { type: "WALL", swatch: PALETTE.wall, label: CELL_LABELS.WALL },
   { type: "FRAGMENT", swatch: PALETTE.fragment, label: CELL_LABELS.FRAGMENT },
@@ -37,6 +38,49 @@ const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
 ];
 
+const VILLAGE_TYPES: CellType[] = [
+  "OPEN",
+  "PATH",
+  "FOREST",
+  "BUILDING_S",
+  "BUILDING_M",
+  "BUILDING_L",
+  "BUILDING_23",
+  "BUILDING_47",
+  "BUILDING_89",
+  "EYE",
+  "TRANSFER_POINT",
+  "NPC",
+  "DROP",
+];
+
+const SHADOW_TYPES: CellType[] = [
+  "OPEN",
+  "PATH",
+  "GHOST_ZONE",
+  "WALL",
+  "EYE",
+  "TRANSFER_POINT",
+  "NPC",
+  "DROP",
+];
+
+function toolsForMode(mode: BuilderMode) {
+  if (mode === "maze") return MAZE_TOOLS;
+  const list = mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
+  return list.map((type) => ({
+    type,
+    swatch: swatchFor(type, mode),
+    label: CELL_LABELS[type] ?? type,
+  }));
+}
+
+const MODES: { key: BuilderMode; label: string; color: string }[] = [
+  { key: "maze", label: "Maze", color: "#b87bff" },
+  { key: "village", label: "Village", color: "#8a6a1f" },
+  { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
+];
+
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
   CORRIDOR: true,
   FRAGMENT: true,
@@ -46,6 +90,11 @@ const WALKABLE_FOR_ROUTE: Record<string, true> = {
   DOOR_TO_ROOM: true,
   NPC: true,
   DROP: true,
+  OPEN: true,
+  PATH: true,
+  EYE: true,
+  TRANSFER_POINT: true,
+  GHOST_ZONE: true,
 };
 
 function bfsPath(
