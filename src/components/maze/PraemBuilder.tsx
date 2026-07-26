@@ -186,7 +186,6 @@ interface PendingNpc {
 
 const PROP_TYPES: CellType[] = [
   "NPC",
-  "WHISPER",
   "BUILDING_23",
   "BUILDING_47",
   "BUILDING_89",
@@ -298,7 +297,7 @@ export function PraemBuilder() {
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
   const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
-  const [propWhisper, setPropWhisper] = useState("");
+
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
   const [vBorder, setVBorder] = useState(true);
@@ -385,9 +384,6 @@ export function PraemBuilder() {
         if (PROP_TYPES.includes(tool)) {
           if (tool === "NPC" || tool === "LANDMARK") {
             if (propName.trim()) base.npc = { name: propName.trim() };
-          }
-          if (tool === "WHISPER") {
-            base.whisper = { text: propWhisper };
           }
         }
         return base;
@@ -503,7 +499,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propWhisper],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName],
   );
 
   const runGenerate = () => {
@@ -1100,19 +1096,6 @@ export function PraemBuilder() {
                     type="text"
                     value={propName}
                     onChange={(e) => setPropName(e.target.value)}
-                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                  />
-                </label>
-              )}
-              {tool === "WHISPER" && (
-                <label className="mb-2 block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Whisper text
-                  </span>
-                  <input
-                    type="text"
-                    value={propWhisper}
-                    onChange={(e) => setPropWhisper(e.target.value)}
                     className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
                   />
                 </label>
