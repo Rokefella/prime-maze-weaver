@@ -204,6 +204,12 @@ export function PraemBuilder() {
   const [routeMode, setRouteMode] = useState(false);
   const [routeA, setRouteA] = useState<{ col: number; row: number } | null>(null);
   const [routeB, setRouteB] = useState<{ col: number; row: number } | null>(null);
+  const [paintMode, setPaintMode] = useState<"cell" | "rect">("cell");
+  const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
+  const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
+  const [propMinLevel, setPropMinLevel] = useState(1);
+  const [propName, setPropName] = useState("");
+  const [propWhisper, setPropWhisper] = useState("");
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -279,6 +285,20 @@ export function PraemBuilder() {
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
 
+      const makeCell = (): CellState => {
+        const base: CellState = { type: tool };
+        if (PROP_TYPES.includes(tool)) {
+          base.min_level = propMinLevel;
+          if (tool === "NPC" || tool === "LANDMARK") {
+            if (propName.trim()) base.npc = { name: propName.trim() };
+          }
+          if (tool === "WHISPER") {
+            base.whisper = { text: propWhisper, min_level: propMinLevel };
+          }
+        }
+        return base;
+      };
+
       // Route mode intercepts clicks: A -> B -> reset cycle. Right-click clears route.
       if (routeMode) {
         if (e.button === 2) {
@@ -301,6 +321,7 @@ export function PraemBuilder() {
 
       // Right-click clears to corridor
       if (e.button === 2) {
+        setRectStart(null);
         setCells((prev) => {
           const next = prev.slice();
           next[idx] = { type: mode === "maze" ? "CORRIDOR" : "OPEN" };
@@ -338,13 +359,39 @@ export function PraemBuilder() {
         }
       }
 
+      // Rectangle fill
+      if (paintMode === "rect") {
+        if (!rectStart) {
+          setRectStart({ col, row });
+          return;
+        }
+        const c0 = Math.min(rectStart.col, col);
+        const c1 = Math.max(rectStart.col, col);
+        const r0 = Math.min(rectStart.row, row);
+        const r1 = Math.max(rectStart.row, row);
+        setCells((prev) => {
+          const next = prev.slice();
+          for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+              if (tool === "FRAGMENT" && !ulam.isPrime[r * size + c]) continue;
+              next[r * size + c] = makeCell();
+            }
+          }
+          return next;
+        });
+        setRectStart(null);
+        setManuallyEdited(true);
+        setFlash({ msg: `Filled ${(c1 - c0 + 1) * (r1 - r0 + 1)} cells.`, tone: "info" });
+        return;
+      }
+
       if (tool === "DOOR_TO_ROOM") {
         // Open inline form
         setPendingDoor({ col, row, roomId: "", awaitingReentry: false });
         return;
       }
 
-      if (tool === "NPC") {
+      if (tool === "NPC" && mode === "maze") {
         setPendingNpc({ col, row, name: "" });
         return;
       }
@@ -357,12 +404,12 @@ export function PraemBuilder() {
             if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
           }
         }
-        next[idx] = { type: tool };
+        next[idx] = makeCell();
         return next;
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propMinLevel, propName, propWhisper],
   );
 
   const runGenerate = () => {
