@@ -8,6 +8,7 @@ import {
   BUILDING_GLYPH,
   swatchFor,
   VILLAGE_EXTRA,
+  abbrevCharacter,
 } from "@/lib/maze/palette";
 
 export interface GridCanvasHandle {
@@ -330,6 +331,14 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         }
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
+
+        if (cell.type === "NPC" && cell.npc?.name && cellPx >= 9) {
+          ctx.fillStyle = "rgba(160,140,200,0.8)";
+          ctx.font = "8px ui-monospace, monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(abbrevCharacter(cell.npc.name), x + w / 2, y + h / 2);
+        }
 
         // Veil overlay: faint diagonal hint so designer can distinguish from wall
         if (cell.type === "VEIL" && cellPx >= 4) {
