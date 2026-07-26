@@ -594,7 +594,8 @@ export function PraemBuilder() {
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize}
+                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize} ·{" "}
+                  {(sl.data.mode ?? "maze").replace("_", " ")}
                 </div>
               </button>
               <button
@@ -785,6 +786,7 @@ export function PraemBuilder() {
             />
             <span className="text-muted-foreground">× {size}</span>
           </div>
+          {mode === "maze" && (
           <label className="mt-2 flex items-center gap-2 text-xs">
             <input
               type="checkbox"
@@ -793,6 +795,7 @@ export function PraemBuilder() {
             />
             <span>Show all cell numbers</span>
           </label>
+          )}
         </Section>
 
         <Section title="Cell Tools">
