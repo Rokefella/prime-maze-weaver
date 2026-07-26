@@ -8,7 +8,21 @@ export type CellType =
   | "DOOR_TO_ROOM"
   | "NPC"
   | "VEIL"
-  | "DROP";
+  | "DROP"
+  | "OPEN"
+  | "BUILDING_S"
+  | "BUILDING_M"
+  | "BUILDING_L"
+  | "BUILDING_23"
+  | "BUILDING_47"
+  | "BUILDING_89"
+  | "FOREST"
+  | "EYE"
+  | "PATH"
+  | "TRANSFER_POINT"
+  | "GHOST_ZONE";
+
+export type BuilderMode = "maze" | "village" | "shadow_realm";
 
 export interface DoorToRoomData {
   roomId: string;
@@ -30,10 +44,12 @@ export interface LevelMeta {
   levelName: string;
   requiredFragments: number;
   notes: string;
+  mode: BuilderMode;
 }
 
 export interface ExportedLevel {
   schemaVersion: 1;
+  mode: BuilderMode;
   levelNumber: number;
   levelName: string;
   gridSize: number;
@@ -55,6 +71,8 @@ export interface ExportedLevel {
   npcs: { col: number; row: number; name: string }[];
   veils: { col: number; row: number }[];
   drops: { col: number; row: number }[];
+  /** Cells belonging to non-maze modes (village / shadow realm). */
+  extraCells?: { col: number; row: number; type: CellType; name?: string }[];
 }
 
 export interface SavedLevel {

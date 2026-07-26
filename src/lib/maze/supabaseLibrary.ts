@@ -36,6 +36,7 @@ export async function upsertBuilderLevel(args: {
   const payload = {
     level_number: args.data.levelNumber,
     level_name: args.data.levelName,
+    mode: args.data.mode ?? "maze",
     status: args.status,
     grid_size: args.data.gridSize,
     data: args.data as unknown as Json,
@@ -69,12 +70,13 @@ export async function publishLevel(data: ExportedLevel): Promise<void> {
   const payload = {
     level_number: data.levelNumber,
     level_name: data.levelName,
+    mode: data.mode ?? "maze",
     grid_size: data.gridSize,
     data: data as unknown as Json,
     published_at: new Date().toISOString(),
   };
   const { error } = await supabase
     .from("levels")
-    .upsert(payload, { onConflict: "level_number" });
+    .upsert(payload as never, { onConflict: "level_number,mode" });
   if (error) throw error;
 }
