@@ -797,7 +797,7 @@ export function PraemBuilder() {
 
         <Section title="Cell Tools">
           <div className="grid grid-cols-2 gap-1.5">
-            {TOOL_LIST.map((t) => (
+            {tools.map((t) => (
               <button
                 key={t.type}
                 onClick={() => setTool(t.type)}
