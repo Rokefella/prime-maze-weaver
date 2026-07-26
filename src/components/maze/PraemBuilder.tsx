@@ -1062,12 +1062,30 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
-          {mode === "village" && PROP_TYPES.includes(tool) && (
+          {mode !== "maze" && PROP_TYPES.includes(tool) && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
                 {CELL_LABELS[tool] ?? tool} properties
               </div>
-              {(tool === "NPC" || tool === "LANDMARK") && (
+              {tool === "NPC" && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Character
+                  </span>
+                  <select
+                    value={propName}
+                    onChange={(e) => setPropName(e.target.value)}
+                    style={CHAR_SELECT_STYLE}
+                  >
+                    {PRAEM_CHARACTERS.map((n) => (
+                      <option key={n} value={n} style={{ background: "#0d0d1a" }}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {tool === "LANDMARK" && (
                 <label className="mb-2 block">
                   <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                     Name
