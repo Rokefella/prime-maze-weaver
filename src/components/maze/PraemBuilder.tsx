@@ -193,6 +193,27 @@ export function PraemBuilder() {
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const mode = meta.mode ?? "maze";
+  const tools = useMemo(() => toolsForMode(mode), [mode]);
+
+  useEffect(() => {
+    // Keep the active tool valid for the current mode.
+    if (!tools.some((t) => t.type === tool)) setTool(tools[0].type);
+  }, [tools, tool]);
+
+  const changeMode = (next: BuilderMode) => {
+    if (next === mode) return;
+    if (manuallyEdited && !confirm("Switching mode clears the current layout. Continue?")) return;
+    setMeta((m) => ({ ...m, mode: next }));
+    setCells(makeBlankCells(size, next));
+    setManuallyEdited(false);
+    setPendingDoor(null);
+    setPendingNpc(null);
+    setHighlight(null);
+    setRotation(0);
+    clearRoute();
+  };
+
   const routeResult = useMemo(() => {
     if (!routeA || !routeB) return null;
     const path = bfsPath(cells, size, routeA, routeB);
@@ -227,13 +248,13 @@ export function PraemBuilder() {
 
   // When size changes, reset cells to blank.
   const resizeGrid = (newSize: number) => {
-    if (manuallyEdited && cells.some((c) => c.type !== "CORRIDOR")) {
+    if (manuallyEdited) {
       if (!confirm("Changing grid size will clear the current layout. Continue?")) {
         return;
       }
     }
     setSize(newSize);
-    setCells(makeBlankCells(newSize));
+    setCells(makeBlankCells(newSize, mode));
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
