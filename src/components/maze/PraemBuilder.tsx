@@ -1227,6 +1227,176 @@ export function PraemBuilder() {
         </Section></>
         )}
 
+        {mode === "village" && (
+          <Section title="Village Population">
+            <label className="text-xs text-muted-foreground">Density</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vDensity}
+              onChange={(e) => setVDensity(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Open</span>
+              <span>{vDensity}</span>
+              <span>Dense</span>
+            </div>
+
+            <label className="mt-2 block text-xs text-muted-foreground">Building mix</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vMix}
+              onChange={(e) => setVMix(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Small</span>
+              <span>{vMix}</span>
+              <span>Large</span>
+            </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={vBorder}
+                onChange={(e) => setVBorder(e.target.checked)}
+              />
+              <span>Border wall</span>
+            </label>
+
+            <div className="mt-3 flex items-stretch gap-2">
+              <button
+                onClick={() => runPopulate()}
+                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                Populate
+              </button>
+              <button
+                onClick={randomisePopulate}
+                title="Randomise & populate"
+                className="rounded-md px-3 text-sm transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={clearVillage}
+                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
+                style={{
+                  border: "0.5px solid rgba(100,80,160,0.3)",
+                  color: "rgba(160,140,200,0.5)",
+                  background: "transparent",
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2" style={{ color: "rgba(160,140,200,0.4)", fontSize: 11 }}>
+              Manual placements (NPCs, whispers, special buildings) are preserved.
+            </p>
+          </Section>
+        )}
+
+        {mode === "shadow_realm" && (
+          <Section title="Shadow Population">
+            <label className="text-xs text-muted-foreground">Density</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={sDensity}
+              onChange={(e) => setSDensity(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Sparse</span>
+              <span>{sDensity}</span>
+              <span>Dense</span>
+            </div>
+
+            <label className="mt-2 block text-xs text-muted-foreground">Atmosphere</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={sAtmosphere}
+              onChange={(e) => setSAtmosphere(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Open</span>
+              <span>{sAtmosphere}</span>
+              <span>Oppressive</span>
+            </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={sBorder}
+                onChange={(e) => setSBorder(e.target.checked)}
+              />
+              <span>Border</span>
+            </label>
+
+            <div className="mt-3 flex items-stretch gap-2">
+              <button
+                onClick={() => runShadowPopulate()}
+                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                Populate
+              </button>
+              <button
+                onClick={randomiseShadow}
+                title="Randomise & populate"
+                className="rounded-md px-3 text-sm transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={clearShadow}
+                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
+                style={{
+                  border: "0.5px solid rgba(100,80,160,0.3)",
+                  color: "rgba(160,140,200,0.5)",
+                  background: "transparent",
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2" style={{ color: "rgba(200,100,100,0.4)", fontSize: 11 }}>
+              Manually placed NPCs and transfer point are preserved.
+            </p>
+          </Section>
+        )}
+
         <Section title="Level Metadata">
           <Field label="Level #">
             <input
