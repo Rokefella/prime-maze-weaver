@@ -16,15 +16,16 @@ import {
   type LevelStatus,
 } from "@/lib/maze/supabaseLibrary";
 import type {
+  BuilderMode,
   CellState,
   CellType,
   LevelMeta,
   SavedLevel,
   ExportedLevel,
 } from "@/lib/maze/types";
-import { CELL_LABELS, PALETTE } from "@/lib/maze/palette";
+import { CELL_LABELS, PALETTE, swatchFor } from "@/lib/maze/palette";
 
-const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
+const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "CORRIDOR", swatch: PALETTE.corridor, label: CELL_LABELS.CORRIDOR },
   { type: "WALL", swatch: PALETTE.wall, label: CELL_LABELS.WALL },
   { type: "FRAGMENT", swatch: PALETTE.fragment, label: CELL_LABELS.FRAGMENT },
@@ -37,6 +38,49 @@ const TOOL_LIST: { type: CellType; swatch: string; label: string }[] = [
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
 ];
 
+const VILLAGE_TYPES: CellType[] = [
+  "OPEN",
+  "PATH",
+  "FOREST",
+  "BUILDING_S",
+  "BUILDING_M",
+  "BUILDING_L",
+  "BUILDING_23",
+  "BUILDING_47",
+  "BUILDING_89",
+  "EYE",
+  "TRANSFER_POINT",
+  "NPC",
+  "DROP",
+];
+
+const SHADOW_TYPES: CellType[] = [
+  "OPEN",
+  "PATH",
+  "GHOST_ZONE",
+  "WALL",
+  "EYE",
+  "TRANSFER_POINT",
+  "NPC",
+  "DROP",
+];
+
+function toolsForMode(mode: BuilderMode) {
+  if (mode === "maze") return MAZE_TOOLS;
+  const list = mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
+  return list.map((type) => ({
+    type,
+    swatch: swatchFor(type, mode),
+    label: CELL_LABELS[type] ?? type,
+  }));
+}
+
+const MODES: { key: BuilderMode; label: string; color: string }[] = [
+  { key: "maze", label: "Maze", color: "#b87bff" },
+  { key: "village", label: "Village", color: "#8a6a1f" },
+  { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
+];
+
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
   CORRIDOR: true,
   FRAGMENT: true,
@@ -46,6 +90,11 @@ const WALKABLE_FOR_ROUTE: Record<string, true> = {
   DOOR_TO_ROOM: true,
   NPC: true,
   DROP: true,
+  OPEN: true,
+  PATH: true,
+  EYE: true,
+  TRANSFER_POINT: true,
+  GHOST_ZONE: true,
 };
 
 function bfsPath(
@@ -87,15 +136,16 @@ function bfsPath(
   return path;
 }
 
-function makeBlankCells(size: number): CellState[] {
+function makeBlankCells(size: number, mode: BuilderMode = "maze"): CellState[] {
   const total = size * size;
   const cells: CellState[] = new Array(total);
-  for (let i = 0; i < total; i++) cells[i] = { type: "CORRIDOR" };
+  const base: CellType = mode === "maze" ? "CORRIDOR" : "OPEN";
+  for (let i = 0; i < total; i++) cells[i] = { type: base };
   return cells;
 }
 
 function defaultMeta(): LevelMeta {
-  return { levelNumber: 1, levelName: "Untitled", requiredFragments: 0, notes: "" };
+  return { levelNumber: 1, levelName: "Untitled", requiredFragments: 0, notes: "", mode: "maze" };
 }
 
 interface Flash {
@@ -143,6 +193,27 @@ export function PraemBuilder() {
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const mode = meta.mode ?? "maze";
+  const tools = useMemo(() => toolsForMode(mode), [mode]);
+
+  useEffect(() => {
+    // Keep the active tool valid for the current mode.
+    if (!tools.some((t) => t.type === tool)) setTool(tools[0].type);
+  }, [tools, tool]);
+
+  const changeMode = (next: BuilderMode) => {
+    if (next === mode) return;
+    if (manuallyEdited && !confirm("Switching mode clears the current layout. Continue?")) return;
+    setMeta((m) => ({ ...m, mode: next }));
+    setCells(makeBlankCells(size, next));
+    setManuallyEdited(false);
+    setPendingDoor(null);
+    setPendingNpc(null);
+    setHighlight(null);
+    setRotation(0);
+    clearRoute();
+  };
+
   const routeResult = useMemo(() => {
     if (!routeA || !routeB) return null;
     const path = bfsPath(cells, size, routeA, routeB);
@@ -177,13 +248,13 @@ export function PraemBuilder() {
 
   // When size changes, reset cells to blank.
   const resizeGrid = (newSize: number) => {
-    if (manuallyEdited && cells.some((c) => c.type !== "CORRIDOR")) {
+    if (manuallyEdited) {
       if (!confirm("Changing grid size will clear the current layout. Continue?")) {
         return;
       }
     }
     setSize(newSize);
-    setCells(makeBlankCells(newSize));
+    setCells(makeBlankCells(newSize, mode));
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
@@ -217,7 +288,7 @@ export function PraemBuilder() {
       if (e.button === 2) {
         setCells((prev) => {
           const next = prev.slice();
-          next[idx] = { type: "CORRIDOR" };
+          next[idx] = { type: mode === "maze" ? "CORRIDOR" : "OPEN" };
           return next;
         });
         setManuallyEdited(true);
@@ -276,7 +347,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode],
   );
 
   const runGenerate = () => {
@@ -324,8 +395,8 @@ export function PraemBuilder() {
 
   const newLevel = () => {
     if (manuallyEdited && !confirm("Discard current level and start fresh?")) return;
-    setCells(makeBlankCells(size));
-    setMeta(defaultMeta());
+    setCells(makeBlankCells(size, mode));
+    setMeta({ ...defaultMeta(), mode });
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
@@ -523,7 +594,8 @@ export function PraemBuilder() {
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize}
+                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize} ·{" "}
+                  {(sl.data.mode ?? "maze").replace("_", " ")}
                 </div>
               </button>
               <button
@@ -552,6 +624,7 @@ export function PraemBuilder() {
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
+          mode={mode}
         />
         {/* Dimension preview toggle */}
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
@@ -671,6 +744,32 @@ export function PraemBuilder() {
 
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
+        <Section title="Mode">
+          <div className="flex gap-1.5">
+            {MODES.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => changeMode(m.key)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                  mode === m.key
+                    ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
+                    : "border-border text-muted-foreground hover:bg-card/60"
+                }`}
+              >
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: m.color }} />
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {mode === "maze"
+              ? "Ulam spiral maze with primes, fragments and doors."
+              : mode === "village"
+                ? "Open village layout: buildings, forest, paths and transfer points."
+                : "Shadow Realm: ghost zones, eyes and transfer points."}
+          </p>
+        </Section>
+
         <Section title="Grid">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Size</span>
@@ -687,6 +786,7 @@ export function PraemBuilder() {
             />
             <span className="text-muted-foreground">× {size}</span>
           </div>
+          {mode === "maze" && (
           <label className="mt-2 flex items-center gap-2 text-xs">
             <input
               type="checkbox"
@@ -695,11 +795,12 @@ export function PraemBuilder() {
             />
             <span>Show all cell numbers</span>
           </label>
+          )}
         </Section>
 
         <Section title="Cell Tools">
           <div className="grid grid-cols-2 gap-1.5">
-            {TOOL_LIST.map((t) => (
+            {tools.map((t) => (
               <button
                 key={t.type}
                 onClick={() => setTool(t.type)}
@@ -770,7 +871,8 @@ export function PraemBuilder() {
           </p>
         </Section>
 
-        <Section title="Complexity">
+        {mode === "maze" && (
+        <><Section title="Complexity">
           <div className="mb-2 flex gap-1.5">
             {(["simple", "medium", "complex"] as const).map((k) => (
               <button
@@ -834,7 +936,8 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
-        </Section>
+        </Section></>
+        )}
 
         <Section title="Level Metadata">
           <Field label="Level #">

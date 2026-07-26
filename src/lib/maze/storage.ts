@@ -1,7 +1,23 @@
-import type { CellState, ExportedLevel, LevelMeta, SavedLevel } from "./types";
+import type { CellState, CellType, ExportedLevel, LevelMeta, SavedLevel } from "./types";
 import type { UlamData } from "./ulam";
 
 export const LIBRARY_KEY = "praem_levels_v1";
+
+// Cell types that only exist in Village / Shadow Realm modes.
+const EXTRA_TYPES: Partial<Record<CellType, true>> = {
+  OPEN: true,
+  BUILDING_S: true,
+  BUILDING_M: true,
+  BUILDING_L: true,
+  BUILDING_23: true,
+  BUILDING_47: true,
+  BUILDING_89: true,
+  FOREST: true,
+  EYE: true,
+  PATH: true,
+  TRANSFER_POINT: true,
+  GHOST_ZONE: true,
+};
 
 export function exportLevel(
   cells: CellState[],
@@ -16,6 +32,7 @@ export function exportLevel(
   const npcs: ExportedLevel["npcs"] = [];
   const veils: { col: number; row: number }[] = [];
   const drops: { col: number; row: number }[] = [];
+  const extraCells: NonNullable<ExportedLevel["extraCells"]> = [];
   let start: ExportedLevel["start"] = null;
   let goldenDoor: ExportedLevel["goldenDoor"] = null;
   let blueDoor: ExportedLevel["blueDoor"] = null;
@@ -24,6 +41,15 @@ export function exportLevel(
     for (let c = 0; c < size; c++) {
       const i = r * size + c;
       const cell = cells[i];
+      if (EXTRA_TYPES[cell.type]) {
+        extraCells.push({
+          col: c,
+          row: r,
+          type: cell.type,
+          ...(cell.npc?.name ? { name: cell.npc.name } : {}),
+        });
+        continue;
+      }
       switch (cell.type) {
         case "WALL":
           walls.push({ col: c, row: r });
@@ -82,6 +108,7 @@ export function exportLevel(
 
   return {
     schemaVersion: 1,
+    mode: meta.mode ?? "maze",
     levelNumber: meta.levelNumber,
     levelName: meta.levelName,
     gridSize: size,
@@ -98,6 +125,7 @@ export function exportLevel(
     npcs,
     veils,
     drops,
+    extraCells,
   };
 }
 
@@ -131,6 +159,11 @@ export function importLevel(data: ExportedLevel): {
     setCell(n.col, n.row, { type: "NPC", npc: { name: n.name } });
   for (const v of data.veils ?? []) setCell(v.col, v.row, { type: "VEIL" });
   for (const d of data.drops ?? []) setCell(d.col, d.row, { type: "DROP" });
+  for (const e of data.extraCells ?? [])
+    setCell(e.col, e.row, {
+      type: e.type,
+      ...(e.name ? { npc: { name: e.name } } : {}),
+    });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)
     setCell(data.goldenDoor.col, data.goldenDoor.row, { type: "GOLDEN_DOOR" });
@@ -140,6 +173,7 @@ export function importLevel(data: ExportedLevel): {
     cells,
     size,
     meta: {
+      mode: data.mode ?? "maze",
       levelNumber: data.levelNumber,
       levelName: data.levelName,
       requiredFragments: data.requiredFragments,
