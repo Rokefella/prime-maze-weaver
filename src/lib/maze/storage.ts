@@ -17,6 +17,10 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   PATH: true,
   TRANSFER_POINT: true,
   GHOST_ZONE: true,
+  SQUARE: true,
+  ROAD: true,
+  LANDMARK: true,
+  WHISPER: true,
 };
 
 export function exportLevel(
@@ -32,6 +36,8 @@ export function exportLevel(
   const npcs: ExportedLevel["npcs"] = [];
   const veils: { col: number; row: number }[] = [];
   const drops: { col: number; row: number }[] = [];
+  const whispers: ExportedLevel["whispers"] = [];
+  const landmarks: ExportedLevel["landmarks"] = [];
   const extraCells: NonNullable<ExportedLevel["extraCells"]> = [];
   let start: ExportedLevel["start"] = null;
   let goldenDoor: ExportedLevel["goldenDoor"] = null;
@@ -46,8 +52,26 @@ export function exportLevel(
           col: c,
           row: r,
           type: cell.type,
-          ...(cell.npc?.name ? { name: cell.npc.name } : {}),
+          ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
+          ...(cell.whisper ? { whisper: cell.whisper } : {}),
+          ...(cell.min_level != null ? { min_level: cell.min_level } : {}),
         });
+        if (cell.type === "WHISPER") {
+          whispers.push({
+            col: c,
+            row: r,
+            text: cell.whisper?.text ?? "",
+            min_level: cell.whisper?.min_level ?? cell.min_level ?? 1,
+          });
+        }
+        if (cell.type === "LANDMARK") {
+          landmarks.push({
+            col: c,
+            row: r,
+            name: cell.npc?.name ?? "",
+            min_level: cell.min_level ?? 1,
+          });
+        }
         continue;
       }
       switch (cell.type) {
@@ -87,7 +111,12 @@ export function exportLevel(
         case "NPC":
           corridors.push({ col: c, row: r });
           if (cell.npc) {
-            npcs.push({ col: c, row: r, name: cell.npc.name });
+            npcs.push({
+              col: c,
+              row: r,
+              name: cell.npc.name,
+              ...(cell.min_level != null ? { min_level: cell.min_level } : {}),
+            });
           }
           break;
         case "VEIL":
@@ -125,6 +154,8 @@ export function exportLevel(
     npcs,
     veils,
     drops,
+    whispers,
+    landmarks,
     extraCells,
   };
 }
@@ -156,13 +187,19 @@ export function importLevel(data: ExportedLevel): {
       door: { roomId: d.roomId, reentry: d.reentry },
     });
   for (const n of data.npcs)
-    setCell(n.col, n.row, { type: "NPC", npc: { name: n.name } });
+    setCell(n.col, n.row, {
+      type: "NPC",
+      npc: { name: n.name },
+      ...(n.min_level != null ? { min_level: n.min_level } : {}),
+    });
   for (const v of data.veils ?? []) setCell(v.col, v.row, { type: "VEIL" });
   for (const d of data.drops ?? []) setCell(d.col, d.row, { type: "DROP" });
   for (const e of data.extraCells ?? [])
     setCell(e.col, e.row, {
       type: e.type,
-      ...(e.name ? { npc: { name: e.name } } : {}),
+      ...(e.name || e.npc_name ? { npc: { name: (e.name ?? e.npc_name)! } } : {}),
+      ...(e.whisper ? { whisper: e.whisper } : {}),
+      ...(e.min_level != null ? { min_level: e.min_level } : {}),
     });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)

@@ -7,6 +7,7 @@ import {
   SHADOW_PALETTE,
   BUILDING_GLYPH,
   swatchFor,
+  VILLAGE_EXTRA,
 } from "@/lib/maze/palette";
 
 export interface GridCanvasHandle {
@@ -26,13 +27,14 @@ interface Props {
   routeB?: { col: number; row: number } | null;
   routePath?: Set<number> | null;
   mode?: BuilderMode;
+  rectPreview?: { a: { col: number; row: number }; b: { col: number; row: number } } | null;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze" },
+  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -169,6 +171,65 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
 
         let fill = PALETTE.corridor;
         if (mode !== "maze") {
+          if (
+            cell.type === "SQUARE" ||
+            cell.type === "ROAD" ||
+            cell.type === "LANDMARK" ||
+            cell.type === "WHISPER"
+          ) {
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, y, w, h);
+            ctx.fillStyle =
+              cell.type === "SQUARE"
+                ? VILLAGE_EXTRA.square
+                : cell.type === "ROAD"
+                  ? VILLAGE_EXTRA.road
+                  : cell.type === "LANDMARK"
+                    ? VILLAGE_EXTRA.landmark
+                    : VILLAGE_EXTRA.whisper;
+            ctx.fillRect(x, y, w, h);
+            if (cell.type === "ROAD") {
+              ctx.strokeStyle = VILLAGE_EXTRA.roadBorder;
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(x, y + h - 0.5);
+              ctx.lineTo(x + w, y + h - 0.5);
+              ctx.stroke();
+            }
+            if (cell.type === "LANDMARK") {
+              ctx.strokeStyle = VILLAGE_EXTRA.landmarkBorder;
+              ctx.lineWidth = 0.5;
+              ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+              const d = Math.max(2, cellPx * 0.22);
+              ctx.beginPath();
+              ctx.moveTo(x + w / 2, y + h / 2 - d);
+              ctx.lineTo(x + w / 2 + d, y + h / 2);
+              ctx.lineTo(x + w / 2, y + h / 2 + d);
+              ctx.lineTo(x + w / 2 - d, y + h / 2);
+              ctx.closePath();
+              ctx.stroke();
+            }
+            if (cell.type === "WHISPER") {
+              ctx.save();
+              ctx.strokeStyle = VILLAGE_EXTRA.whisperBorder;
+              ctx.lineWidth = 0.5;
+              ctx.setLineDash([2, 2]);
+              ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+              ctx.restore();
+              if (cellPx >= 10) {
+                ctx.fillStyle = VILLAGE_EXTRA.whisperGlyph;
+                ctx.font = `italic ${Math.floor(cellPx * 0.5)}px ui-serif, Georgia, serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("w", x + w / 2, y + h / 2);
+              }
+            }
+            if (routePath && routePath.has(i)) {
+              ctx.fillStyle = "rgba(255,140,40,0.55)";
+              ctx.fillRect(x, y, w, h);
+            }
+            continue;
+          }
           fill = swatchFor(cell.type, mode);
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, w, h);
@@ -363,7 +424,31 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     };
     if (routeA) drawEndpoint(routeA, "#22c55e");
     if (routeB) drawEndpoint(routeB, "#ef4444");
-  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode]);
+
+    // Rectangle fill preview
+    if (rectPreview) {
+      const c0 = Math.min(rectPreview.a.col, rectPreview.b.col);
+      const c1 = Math.max(rectPreview.a.col, rectPreview.b.col);
+      const r0 = Math.min(rectPreview.a.row, rectPreview.b.row);
+      const r1 = Math.max(rectPreview.a.row, rectPreview.b.row);
+      ctx.fillStyle = "rgba(200,150,58,0.15)";
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const d = toDisplay(c, r);
+          ctx.fillRect(offset.x + d.col * cellPx, offset.y + d.row * cellPx, cellPx, cellPx);
+        }
+      }
+      ctx.strokeStyle = "rgba(200,150,58,0.6)";
+      ctx.lineWidth = 1.5;
+      const dA = toDisplay(c0, r0);
+      const dB = toDisplay(c1, r1);
+      const x0 = Math.min(dA.col, dB.col);
+      const y0 = Math.min(dA.row, dB.row);
+      const wCells = Math.abs(dB.col - dA.col) + 1;
+      const hCells = Math.abs(dB.row - dA.row) + 1;
+      ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
+    }
+  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);

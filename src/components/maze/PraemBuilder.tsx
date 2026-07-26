@@ -40,18 +40,20 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
 
 const VILLAGE_TYPES: CellType[] = [
   "OPEN",
+  "SQUARE",
+  "ROAD",
   "PATH",
-  "FOREST",
   "BUILDING_S",
   "BUILDING_M",
   "BUILDING_L",
   "BUILDING_23",
   "BUILDING_47",
   "BUILDING_89",
-  "EYE",
-  "TRANSFER_POINT",
+  "FOREST",
   "NPC",
-  "DROP",
+  "WHISPER",
+  "LANDMARK",
+  "EYE",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -95,6 +97,10 @@ const WALKABLE_FOR_ROUTE: Record<string, true> = {
   EYE: true,
   TRANSFER_POINT: true,
   GHOST_ZONE: true,
+  SQUARE: true,
+  ROAD: true,
+  LANDMARK: true,
+  WHISPER: true,
 };
 
 function bfsPath(
@@ -165,6 +171,15 @@ interface PendingNpc {
   name: string;
 }
 
+const PROP_TYPES: CellType[] = [
+  "NPC",
+  "WHISPER",
+  "BUILDING_23",
+  "BUILDING_47",
+  "BUILDING_89",
+  "LANDMARK",
+];
+
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
@@ -189,6 +204,12 @@ export function PraemBuilder() {
   const [routeMode, setRouteMode] = useState(false);
   const [routeA, setRouteA] = useState<{ col: number; row: number } | null>(null);
   const [routeB, setRouteB] = useState<{ col: number; row: number } | null>(null);
+  const [paintMode, setPaintMode] = useState<"cell" | "rect">("cell");
+  const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
+  const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
+  const [propMinLevel, setPropMinLevel] = useState(1);
+  const [propName, setPropName] = useState("");
+  const [propWhisper, setPropWhisper] = useState("");
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -264,6 +285,20 @@ export function PraemBuilder() {
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
 
+      const makeCell = (): CellState => {
+        const base: CellState = { type: tool };
+        if (PROP_TYPES.includes(tool)) {
+          base.min_level = propMinLevel;
+          if (tool === "NPC" || tool === "LANDMARK") {
+            if (propName.trim()) base.npc = { name: propName.trim() };
+          }
+          if (tool === "WHISPER") {
+            base.whisper = { text: propWhisper, min_level: propMinLevel };
+          }
+        }
+        return base;
+      };
+
       // Route mode intercepts clicks: A -> B -> reset cycle. Right-click clears route.
       if (routeMode) {
         if (e.button === 2) {
@@ -286,6 +321,7 @@ export function PraemBuilder() {
 
       // Right-click clears to corridor
       if (e.button === 2) {
+        setRectStart(null);
         setCells((prev) => {
           const next = prev.slice();
           next[idx] = { type: mode === "maze" ? "CORRIDOR" : "OPEN" };
@@ -323,13 +359,39 @@ export function PraemBuilder() {
         }
       }
 
+      // Rectangle fill
+      if (paintMode === "rect") {
+        if (!rectStart) {
+          setRectStart({ col, row });
+          return;
+        }
+        const c0 = Math.min(rectStart.col, col);
+        const c1 = Math.max(rectStart.col, col);
+        const r0 = Math.min(rectStart.row, row);
+        const r1 = Math.max(rectStart.row, row);
+        setCells((prev) => {
+          const next = prev.slice();
+          for (let r = r0; r <= r1; r++) {
+            for (let c = c0; c <= c1; c++) {
+              if (tool === "FRAGMENT" && !ulam.isPrime[r * size + c]) continue;
+              next[r * size + c] = makeCell();
+            }
+          }
+          return next;
+        });
+        setRectStart(null);
+        setManuallyEdited(true);
+        setFlash({ msg: `Filled ${(c1 - c0 + 1) * (r1 - r0 + 1)} cells.`, tone: "info" });
+        return;
+      }
+
       if (tool === "DOOR_TO_ROOM") {
         // Open inline form
         setPendingDoor({ col, row, roomId: "", awaitingReentry: false });
         return;
       }
 
-      if (tool === "NPC") {
+      if (tool === "NPC" && mode === "maze") {
         setPendingNpc({ col, row, name: "" });
         return;
       }
@@ -342,12 +404,12 @@ export function PraemBuilder() {
             if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
           }
         }
-        next[idx] = { type: tool };
+        next[idx] = makeCell();
         return next;
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propMinLevel, propName, propWhisper],
   );
 
   const runGenerate = () => {
@@ -619,12 +681,18 @@ export function PraemBuilder() {
           showNumbers={showNumbers}
           highlight={highlight}
           onCellClick={onCellClick}
+          onCellHover={(c, r) => setHoverCell(r === null ? null : { col: c, row: r })}
           rotation={rotation}
           readOnly={rotation !== 0}
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
           mode={mode}
+          rectPreview={
+            paintMode === "rect" && rectStart && hoverCell
+              ? { a: rectStart, b: hoverCell }
+              : null
+          }
         />
         {/* Dimension preview toggle */}
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
@@ -799,6 +867,24 @@ export function PraemBuilder() {
         </Section>
 
         <Section title="Cell Tools">
+          <div className="mb-2 flex gap-1.5">
+            {(["cell", "rect"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setPaintMode(m);
+                  setRectStart(null);
+                }}
+                className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                  paintMode === m
+                    ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                    : "border-border text-muted-foreground hover:bg-card/60"
+                }`}
+              >
+                {m === "cell" ? "Cell" : "Fill Rect"}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-2 gap-1.5">
             {tools.map((t) => (
               <button
@@ -818,8 +904,62 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
+          {mode === "village" && PROP_TYPES.includes(tool) && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                {CELL_LABELS[tool] ?? tool} properties
+              </div>
+              {(tool === "NPC" || tool === "LANDMARK") && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Name
+                  </span>
+                  <input
+                    type="text"
+                    value={propName}
+                    onChange={(e) => setPropName(e.target.value)}
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  />
+                </label>
+              )}
+              {tool === "WHISPER" && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Whisper text
+                  </span>
+                  <input
+                    type="text"
+                    value={propWhisper}
+                    onChange={(e) => setPropWhisper(e.target.value)}
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  />
+                </label>
+              )}
+              <label className="block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Visible from level:
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={propMinLevel}
+                  onChange={(e) =>
+                    setPropMinLevel(
+                      Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))),
+                    )
+                  }
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
-            Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom.
+            {paintMode === "rect"
+              ? rectStart
+                ? "Click the opposite corner to fill the rectangle."
+                : "Click the first corner of the rectangle."
+              : "Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom."}
           </p>
         </Section>
 

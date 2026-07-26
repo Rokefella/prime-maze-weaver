@@ -20,7 +20,11 @@ export type CellType =
   | "EYE"
   | "PATH"
   | "TRANSFER_POINT"
-  | "GHOST_ZONE";
+  | "GHOST_ZONE"
+  | "SQUARE"
+  | "ROAD"
+  | "LANDMARK"
+  | "WHISPER";
 
 export type BuilderMode = "maze" | "village" | "shadow_realm";
 
@@ -33,10 +37,17 @@ export interface NpcData {
   name: string;
 }
 
+export interface WhisperData {
+  text: string;
+  min_level: number;
+}
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
   npc?: NpcData;
+  whisper?: WhisperData;
+  min_level?: number;
 }
 
 export interface LevelMeta {
@@ -68,11 +79,21 @@ export interface ExportedLevel {
     roomId: string;
     reentry: { col: number; row: number };
   }[];
-  npcs: { col: number; row: number; name: string }[];
+  npcs: { col: number; row: number; name: string; min_level?: number }[];
   veils: { col: number; row: number }[];
   drops: { col: number; row: number }[];
+  whispers: { col: number; row: number; text: string; min_level: number }[];
+  landmarks: { col: number; row: number; name: string; min_level: number }[];
   /** Cells belonging to non-maze modes (village / shadow realm). */
-  extraCells?: { col: number; row: number; type: CellType; name?: string }[];
+  extraCells?: {
+    col: number;
+    row: number;
+    type: CellType;
+    name?: string;
+    npc_name?: string;
+    whisper?: WhisperData;
+    min_level?: number;
+  }[];
 }
 
 export interface SavedLevel {

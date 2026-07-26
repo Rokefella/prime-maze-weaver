@@ -36,6 +36,18 @@ export const VILLAGE_PALETTE = {
   transfer: "#38bdf8",
 };
 
+// New village city types
+export const VILLAGE_EXTRA = {
+  square: "rgba(100,80,160,0.06)",
+  road: "rgba(100,80,160,0.08)",
+  roadBorder: "rgba(100,80,160,0.15)",
+  landmark: "rgba(100,80,160,0.08)",
+  landmarkBorder: "rgba(160,140,200,0.3)",
+  whisper: "rgba(91,79,212,0.06)",
+  whisperBorder: "rgba(160,140,200,0.4)",
+  whisperGlyph: "rgba(160,140,200,0.5)",
+};
+
 // Shadow Realm palette
 export const SHADOW_PALETTE = {
   background: "#08070c",
@@ -89,6 +101,10 @@ export const CELL_LABELS: Record<string, string> = {
   EYE: "Eye",
   TRANSFER_POINT: "Transfer Point",
   GHOST_ZONE: "Ghost Zone",
+  SQUARE: "Square",
+  ROAD: "Road",
+  LANDMARK: "Landmark",
+  WHISPER: "Whisper",
 };
 
 export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm"): string {
@@ -96,6 +112,10 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
     switch (type) {
       case "OPEN": return VILLAGE_PALETTE.open;
       case "PATH": return VILLAGE_PALETTE.path;
+      case "SQUARE": return "#232f27";
+      case "ROAD": return "#3a3048";
+      case "LANDMARK": return "#33294a";
+      case "WHISPER": return "#2a2450";
       case "FOREST": return VILLAGE_PALETTE.forest;
       case "BUILDING_S": return VILLAGE_PALETTE.buildingS;
       case "BUILDING_M": return VILLAGE_PALETTE.buildingM;
