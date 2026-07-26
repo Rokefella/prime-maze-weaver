@@ -867,6 +867,24 @@ export function PraemBuilder() {
         </Section>
 
         <Section title="Cell Tools">
+          <div className="mb-2 flex gap-1.5">
+            {(["cell", "rect"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setPaintMode(m);
+                  setRectStart(null);
+                }}
+                className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                  paintMode === m
+                    ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                    : "border-border text-muted-foreground hover:bg-card/60"
+                }`}
+              >
+                {m === "cell" ? "Cell" : "Fill Rect"}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-2 gap-1.5">
             {tools.map((t) => (
               <button
@@ -886,8 +904,62 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
+          {mode === "village" && PROP_TYPES.includes(tool) && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                {CELL_LABELS[tool] ?? tool} properties
+              </div>
+              {(tool === "NPC" || tool === "LANDMARK") && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Name
+                  </span>
+                  <input
+                    type="text"
+                    value={propName}
+                    onChange={(e) => setPropName(e.target.value)}
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  />
+                </label>
+              )}
+              {tool === "WHISPER" && (
+                <label className="mb-2 block">
+                  <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Whisper text
+                  </span>
+                  <input
+                    type="text"
+                    value={propWhisper}
+                    onChange={(e) => setPropWhisper(e.target.value)}
+                    className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                  />
+                </label>
+              )}
+              <label className="block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Visible from level:
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={propMinLevel}
+                  onChange={(e) =>
+                    setPropMinLevel(
+                      Math.max(1, Math.min(30, parseInt(e.target.value || "1", 10))),
+                    )
+                  }
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
-            Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom.
+            {paintMode === "rect"
+              ? rectStart
+                ? "Click the opposite corner to fill the rectangle."
+                : "Click the first corner of the rectangle."
+              : "Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom."}
           </p>
         </Section>
 
