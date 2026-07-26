@@ -681,12 +681,18 @@ export function PraemBuilder() {
           showNumbers={showNumbers}
           highlight={highlight}
           onCellClick={onCellClick}
+          onCellHover={(c, r) => setHoverCell(r === null ? null : { col: c, row: r })}
           rotation={rotation}
           readOnly={rotation !== 0}
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
           mode={mode}
+          rectPreview={
+            paintMode === "rect" && rectStart && hoverCell
+              ? { a: rectStart, b: hoverCell }
+              : null
+          }
         />
         {/* Dimension preview toggle */}
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
