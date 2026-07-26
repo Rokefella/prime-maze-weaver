@@ -3,6 +3,7 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells } from "@/lib/maze/fragments";
+import { generateVillage, preserveManual } from "@/lib/maze/villageGenerator";
 import {
   exportLevel,
   importLevel,
@@ -210,6 +211,9 @@ export function PraemBuilder() {
   const [propMinLevel, setPropMinLevel] = useState(1);
   const [propName, setPropName] = useState("");
   const [propWhisper, setPropWhisper] = useState("");
+  const [vDensity, setVDensity] = useState(5);
+  const [vMix, setVMix] = useState(5);
+  const [vBorder, setVBorder] = useState(true);
 
   const gridRef = useRef<GridCanvasHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -426,6 +430,33 @@ export function PraemBuilder() {
     const p = PRESETS[k];
     setDeadEnds(p.deadEnds);
     setBranching(p.branching);
+  };
+
+  const runPopulate = (density = vDensity, mix = vMix) => {
+    const generated = generateVillage({
+      size,
+      density,
+      buildingMix: mix,
+      borderWall: vBorder,
+    });
+    setCells((prev) => preserveManual(prev, generated));
+    setManuallyEdited(true);
+    setFlash({ msg: "Village populated.", tone: "info" });
+  };
+
+  const clearVillage = () => {
+    setCells(makeBlankCells(size, "village"));
+    setManuallyEdited(false);
+    setFlash({ msg: "Cleared to open ground.", tone: "info" });
+  };
+
+  const randomisePopulate = () => {
+    const jitter = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    const d = Math.max(1, Math.min(10, vDensity + jitter()));
+    const m = Math.max(1, Math.min(10, vMix + jitter()));
+    setVDensity(d);
+    setVMix(m);
+    runPopulate(d, m);
   };
 
   const suggestFragments = () => {
@@ -718,6 +749,96 @@ export function PraemBuilder() {
             Preview — edit in Purple
           </div>
         )}
+
+        {mode === "village" && rotation === 0 && (
+          <div className="absolute left-3 top-3 w-64 rounded-lg border border-border bg-card/90 p-3 backdrop-blur">
+            <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+              Village Population
+            </div>
+
+            <label className="text-xs text-muted-foreground">Density</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vDensity}
+              onChange={(e) => setVDensity(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Open</span>
+              <span>{vDensity}</span>
+              <span>Dense</span>
+            </div>
+
+            <label className="mt-2 block text-xs text-muted-foreground">Building mix</label>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={vMix}
+              onChange={(e) => setVMix(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Small</span>
+              <span>{vMix}</span>
+              <span>Large</span>
+            </div>
+
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={vBorder}
+                onChange={(e) => setVBorder(e.target.checked)}
+              />
+              <span>Border wall</span>
+            </label>
+
+            <div className="mt-3 flex items-stretch gap-2">
+              <button
+                onClick={() => runPopulate()}
+                className="flex-1 rounded-md py-2 font-display text-xs uppercase tracking-[0.2em] transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                Populate
+              </button>
+              <button
+                onClick={randomisePopulate}
+                title="Randomise & populate"
+                className="rounded-md px-3 text-sm transition hover:brightness-125"
+                style={{
+                  border: "1px solid #c8963a",
+                  color: "#c8963a",
+                  background: "rgba(200,150,58,0.08)",
+                }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={clearVillage}
+                className="rounded-md px-3 text-[10px] uppercase tracking-wider transition hover:bg-card"
+                style={{
+                  border: "0.5px solid rgba(100,80,160,0.3)",
+                  color: "rgba(160,140,200,0.5)",
+                  background: "transparent",
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2" style={{ color: "rgba(160,140,200,0.4)", fontSize: 11 }}>
+              Manual placements (NPCs, whispers, special buildings) are preserved.
+            </p>
+          </div>
+        )}
+
         {flash && (
           <div
             className={`pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md border px-4 py-2 text-xs backdrop-blur ${
