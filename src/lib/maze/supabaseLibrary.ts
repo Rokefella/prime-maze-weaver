@@ -85,6 +85,7 @@ export async function publishLevel(data: ExportedLevel): Promise<void> {
 
   const payload = {
     location_key: data.mode,
+    level_number: data.levelNumber,
     level_name: data.levelName,
     grid_size: data.gridSize,
     data: data as unknown as Json,
@@ -92,6 +93,6 @@ export async function publishLevel(data: ExportedLevel): Promise<void> {
   };
   const { error } = await supabase
     .from("special_locations" as never)
-    .upsert(payload as never, { onConflict: "location_key" });
+    .upsert(payload as never, { onConflict: "level_number,location_key" });
   if (error) throw error;
 }
