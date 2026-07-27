@@ -1265,6 +1265,22 @@ export function PraemBuilder() {
               <span>Large</span>
             </div>
 
+            <label className="mt-2 block text-xs text-muted-foreground">Chaos</label>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              step={1}
+              value={vChaos}
+              onChange={(e) => setVChaos(parseInt(e.target.value, 10))}
+              className="w-full accent-[color:var(--accent-gold)]"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Symmetric</span>
+              <span>{vChaos}</span>
+              <span>Chaotic</span>
+            </div>
+
             <label className="mt-2 flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
