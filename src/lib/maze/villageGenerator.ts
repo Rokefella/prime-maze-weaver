@@ -89,6 +89,24 @@ export function generateVillage(params: VillageParams): CellState[] {
   const inPlaza = (c: number, r: number) =>
     c >= plaza.c0 && c <= plaza.c1 && r >= plaza.r0 && r <= plaza.r1;
 
+  // ================= HIGH CHAOS (8-10): corridor carving =================
+  if (chaos >= 8) {
+    carveChaoticVillage({
+      size,
+      min,
+      max,
+      chaos,
+      density,
+      buildingMix,
+      cells,
+      idx,
+      set,
+      inPlaza,
+    });
+    set(centerC, centerR, "EYE");
+    return cells;
+  }
+
   // ---- Step 2: street grid ----
   // Build street bands along both axes; block sizes vary with density.
   const bands = (): { start: number; width: number }[] => {
