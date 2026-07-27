@@ -90,6 +90,7 @@ export function generateVillage(params: VillageParams): CellState[] {
       idx,
       set,
     });
+    ensureBuildingAccess(cells, size, min, max);
     return cells;
   }
 
