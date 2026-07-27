@@ -190,7 +190,13 @@ export function generateVillage(params: VillageParams): CellState[] {
 
   const colBlocks = blockRanges(vBands);
   const rowBlocks = blockRanges(hBands);
-  const gap = density >= 8 ? (Math.random() < 0.5 ? 0 : 1) : 1;
+  const baseGap = density >= 8 ? (Math.random() < 0.5 ? 0 : 1) : 1;
+  const skipChance = k * 0.3;
+  const gapFor = () => {
+    if (k === 0) return baseGap;
+    const extra = Math.random() < k * 0.5 ? Math.floor(Math.random() * (1 + Math.round(k * 2))) : 0;
+    return baseGap + extra;
+  };
 
   const areaFree = (c0: number, r0: number, w: number, h: number) => {
     for (let r = r0; r < r0 + h; r++) {
@@ -230,34 +236,24 @@ export function generateVillage(params: VillageParams): CellState[] {
             x += 1;
             continue;
           }
+          if (skipChance > 0 && Math.random() < skipChance) {
+            x += 1 + Math.floor(Math.random() * 2);
+            continue;
+          }
           for (let r = y; r < y + fit.h; r++) {
             for (let c = x; c < x + fit.w; c++) set(c, r, fit.type);
           }
           tallest = Math.max(tallest, fit.h);
-          x += fit.w + gap;
+          x += fit.w + gapFor();
         }
         if (tallest === 0) break;
-        y += tallest + gap;
+        y += tallest + gapFor();
       }
     }
   }
 
   // ---- Step 4b: EYE at exact grid center ----
   set(centerC, centerR, "EYE");
-
-  // ---- Step 5: special buildings at fixed offsets (4x3 each) ----
-  const special: { type: CellType; c: number; r: number }[] = [
-    { type: "BUILDING_23", c: centerC - 8, r: centerR },
-    { type: "BUILDING_47", c: centerC + 8, r: centerR },
-    { type: "BUILDING_89", c: centerC, r: centerR - 8 },
-  ];
-  for (const s of special) {
-    const c0 = Math.max(0, Math.min(size - 4, s.c - 2));
-    const r0 = Math.max(0, Math.min(size - 3, s.r - 1));
-    for (let r = r0; r < r0 + 3; r++) {
-      for (let c = c0; c < c0 + 4; c++) set(c, r, s.type);
-    }
-  }
 
   return cells;
 }
