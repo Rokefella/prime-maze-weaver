@@ -6,6 +6,8 @@ export interface VillageParams {
   density: number;
   /** 1-10, Small -> Large */
   buildingMix: number;
+  /** 0-10, Symmetric -> Chaotic */
+  chaos?: number;
   borderWall: boolean;
 }
 
