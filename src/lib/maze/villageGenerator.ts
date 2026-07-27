@@ -77,18 +77,6 @@ export function generateVillage(params: VillageParams): CellState[] {
   const workSpan = max - min + 1;
   if (workSpan < 8) return cells;
 
-  // ---- Step 4 (reserved first): central plaza kept OPEN ----
-  const centerC = Math.floor(size / 2);
-  const centerR = Math.floor(size / 2);
-  const plaza = {
-    c0: centerC - 5,
-    c1: centerC + 4,
-    r0: centerR - 5,
-    r1: centerR + 4,
-  };
-  const inPlaza = (c: number, r: number) =>
-    c >= plaza.c0 && c <= plaza.c1 && r >= plaza.r0 && r <= plaza.r1;
-
   // ================= HIGH CHAOS (8-10): corridor carving =================
   if (chaos >= 8) {
     carveChaoticVillage({
@@ -101,9 +89,7 @@ export function generateVillage(params: VillageParams): CellState[] {
       cells,
       idx,
       set,
-      inPlaza,
     });
-    set(centerC, centerR, "EYE");
     return cells;
   }
 
@@ -186,7 +172,6 @@ export function generateVillage(params: VillageParams): CellState[] {
 
   for (let r = min; r <= max; r++) {
     for (let c = min; c <= max; c++) {
-      if (inPlaza(c, r)) continue;
       const v = isVStreet(c, r);
       const h = isHStreet(r, c);
       if (v && h) set(c, r, "SQUARE");
@@ -219,7 +204,6 @@ export function generateVillage(params: VillageParams): CellState[] {
   const areaFree = (c0: number, r0: number, w: number, h: number) => {
     for (let r = r0; r < r0 + h; r++) {
       for (let c = c0; c < c0 + w; c++) {
-        if (inPlaza(c, r)) return false;
         if (cells[idx(c, r)].type !== "OPEN") return false;
       }
     }
@@ -270,9 +254,6 @@ export function generateVillage(params: VillageParams): CellState[] {
     }
   }
 
-  // ---- Step 4b: EYE at exact grid center ----
-  set(centerC, centerR, "EYE");
-
   return cells;
 }
 
@@ -286,7 +267,6 @@ interface ChaoticArgs {
   cells: CellState[];
   idx: (c: number, r: number) => number;
   set: (c: number, r: number, type: CellType) => void;
-  inPlaza: (c: number, r: number) => boolean;
 }
 
 /**
@@ -296,7 +276,7 @@ interface ChaoticArgs {
  * pockets remain, regardless of pocket shape.
  */
 function carveChaoticVillage(a: ChaoticArgs) {
-  const { size, min, max, chaos, density, buildingMix, cells, idx, set, inPlaza } = a;
+  const { size, min, max, chaos, density, buildingMix, cells, idx, set } = a;
   const span = max - min + 1;
   const t = (chaos - 8) / 2; // 0 at chaos 8, 1 at chaos 10
 
@@ -310,7 +290,7 @@ function carveChaoticVillage(a: ChaoticArgs) {
 
   const inWork = (c: number, r: number) => c >= min && c <= max && r >= min && r <= max;
   const mark = (c: number, r: number) => {
-    if (!inWork(c, r) || inPlaza(c, r)) return;
+    if (!inWork(c, r)) return;
     const i = idx(c, r);
     if (street[i]) return;
     street[i] = 1;
@@ -387,7 +367,7 @@ function carveChaoticVillage(a: ChaoticArgs) {
   // Paint streets; junctions (3+ street neighbours) become SQUARE.
   for (let r = min; r <= max; r++) {
     for (let c = min; c <= max; c++) {
-      if (!street[idx(c, r)] || inPlaza(c, r)) continue;
+      if (!street[idx(c, r)]) continue;
       let n = 0;
       for (const [dc, dr] of DIRS) {
         const cc = c + dc;
@@ -402,7 +382,7 @@ function carveChaoticVillage(a: ChaoticArgs) {
   const areaFree = (c0: number, r0: number, w: number, h: number) => {
     for (let r = r0; r < r0 + h; r++) {
       for (let c = c0; c < c0 + w; c++) {
-        if (!inWork(c, r) || inPlaza(c, r)) return false;
+        if (!inWork(c, r)) return false;
         if (cells[idx(c, r)].type !== "OPEN") return false;
       }
     }
@@ -412,7 +392,7 @@ function carveChaoticVillage(a: ChaoticArgs) {
   const gapChanceLocal = 0.25 + t * 0.2;
   for (let r = min; r <= max; r++) {
     for (let c = min; c <= max; c++) {
-      if (cells[idx(c, r)].type !== "OPEN" || inPlaza(c, r)) continue;
+      if (cells[idx(c, r)].type !== "OPEN") continue;
       if (Math.random() < gapChanceLocal) continue;
       const rolled = pickBuildingSize(buildingMix);
       const options: Size[] = [
