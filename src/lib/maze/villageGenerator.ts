@@ -52,6 +52,8 @@ function blockSizeFor(density: number): number {
  */
 export function generateVillage(params: VillageParams): CellState[] {
   const { size, density, buildingMix, borderWall } = params;
+  const chaos = Math.max(0, Math.min(10, params.chaos ?? 0));
+  const k = chaos / 10;
   const total = size * size;
   const cells: CellState[] = new Array(total);
   for (let i = 0; i < total; i++) cells[i] = { type: "OPEN" };
