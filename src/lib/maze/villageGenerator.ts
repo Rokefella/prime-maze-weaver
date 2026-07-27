@@ -90,6 +90,7 @@ export function generateVillage(params: VillageParams): CellState[] {
       idx,
       set,
     });
+    ensureBuildingAccess(cells, size, min, max);
     return cells;
   }
 
@@ -254,7 +255,137 @@ export function generateVillage(params: VillageParams): CellState[] {
     }
   }
 
+  ensureBuildingAccess(cells, size, min, max);
+
   return cells;
+}
+
+const BUILDING_TYPES: CellType[] = ["BUILDING_S", "BUILDING_M", "BUILDING_L"];
+const STREET_TYPES: CellType[] = ["ROAD", "SQUARE"];
+
+/**
+ * Final validation pass (runs at every chaos level): every contiguous building
+ * cluster must touch at least one ROAD or SQUARE cell orthogonally. Clusters
+ * that don't get a 1-wide connector carved to the nearest street, preferring to
+ * cut through OPEN space and only sacrificing building cells when unavoidable.
+ */
+function ensureBuildingAccess(cells: CellState[], size: number, min: number, max: number) {
+  const idx = (c: number, r: number) => r * size + c;
+  const inWork = (c: number, r: number) => c >= min && c <= max && r >= min && r <= max;
+  const isBuilding = (i: number) => BUILDING_TYPES.includes(cells[i].type);
+  const isStreet = (i: number) => STREET_TYPES.includes(cells[i].type);
+  const DIRS: [number, number][] = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+
+  const seen = new Uint8Array(size * size);
+
+  for (let r = min; r <= max; r++) {
+    for (let c = min; c <= max; c++) {
+      const start = idx(c, r);
+      if (seen[start] || !isBuilding(start)) continue;
+      const type = cells[start].type;
+
+      // Flood the contiguous same-type cluster.
+      const cluster: { c: number; r: number }[] = [];
+      const queue = [{ c, r }];
+      seen[start] = 1;
+      let touchesStreet = false;
+      while (queue.length) {
+        const cur = queue.pop()!;
+        cluster.push(cur);
+        for (const [dc, dr] of DIRS) {
+          const nc = cur.c + dc;
+          const nr = cur.r + dr;
+          if (!inWork(nc, nr)) continue;
+          const ni = idx(nc, nr);
+          if (isStreet(ni)) touchesStreet = true;
+          if (!seen[ni] && cells[ni].type === type) {
+            seen[ni] = 1;
+            queue.push({ c: nc, r: nr });
+          }
+        }
+      }
+      if (touchesStreet) continue;
+
+      carveConnector(cluster);
+    }
+  }
+
+  function carveConnector(cluster: { c: number; r: number }[]) {
+    // Dijkstra outward from the cluster; OPEN cells are cheap, buildings costly,
+    // anything else (forest / interactive) is impassable.
+    const INF = Number.POSITIVE_INFINITY;
+    const dist = new Float64Array(size * size).fill(INF);
+    const prev = new Int32Array(size * size).fill(-1);
+    const frontier: number[] = [];
+    const clusterSet = new Set(cluster.map((p) => idx(p.c, p.r)));
+
+    for (const p of cluster) {
+      const i = idx(p.c, p.r);
+      dist[i] = 0;
+      frontier.push(i);
+    }
+
+    const costOf = (i: number): number | null => {
+      const t = cells[i].type;
+      if (STREET_TYPES.includes(t)) return 0;
+      if (t === "OPEN") return 1;
+      if (BUILDING_TYPES.includes(t)) return 6;
+      return null; // forest, plaza-less specials, interactives: don't disturb
+    };
+
+    let target = -1;
+    while (frontier.length) {
+      let bestPos = 0;
+      for (let k = 1; k < frontier.length; k++) {
+        if (dist[frontier[k]] < dist[frontier[bestPos]]) bestPos = k;
+      }
+      const cur = frontier.splice(bestPos, 1)[0];
+      if (isStreet(cur) && !clusterSet.has(cur)) {
+        target = cur;
+        break;
+      }
+      const cc = cur % size;
+      const cr = (cur - cc) / size;
+      for (const [dc, dr] of DIRS) {
+        const nc = cc + dc;
+        const nr = cr + dr;
+        if (!inWork(nc, nr)) continue;
+        const ni = idx(nc, nr);
+        const cost = costOf(ni);
+        if (cost === null) continue;
+        const nd = dist[cur] + cost;
+        if (nd < dist[ni]) {
+          dist[ni] = nd;
+          prev[ni] = cur;
+          frontier.push(ni);
+        }
+      }
+    }
+
+    if (target < 0) return;
+
+    // Walk back and convert everything between the street and the cluster edge.
+    let node = prev[target];
+    while (node >= 0 && !clusterSet.has(node)) {
+      cells[node] = { type: "ROAD" };
+      node = prev[node];
+    }
+    // If the connector ends flush against a cluster cell we're done; otherwise
+    // sacrifice that one cluster cell so the building has a road-facing side.
+    if (node >= 0 && cluster.length > 1) {
+      const stillBlocked = !DIRS.some(([dc, dr]) => {
+        const nc = (node % size) + dc;
+        const nr = (node - (node % size)) / size + dr;
+        return inWork(nc, nr) && isStreet(idx(nc, nr));
+      });
+      if (stillBlocked) cells[node] = { type: "ROAD" };
+    }
+  }
 }
 
 interface ChaoticArgs {
