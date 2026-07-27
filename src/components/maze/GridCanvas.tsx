@@ -241,7 +241,11 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
               mode === "village" ? VILLAGE_PALETTE.buildingBorder : SHADOW_PALETTE.buildingBorder;
             ctx.lineWidth = 1.5;
             ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-            if (cell.type === "BUILDING_89") {
+            if (
+              cell.type === "BUILDING_23" ||
+              cell.type === "BUILDING_47" ||
+              cell.type === "BUILDING_89"
+            ) {
               ctx.fillStyle = `rgba(255,215,120,${0.15 + 0.25 * pulse})`;
               ctx.fillRect(x, y, w, h);
             }
