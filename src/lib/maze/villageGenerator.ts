@@ -6,6 +6,8 @@ export interface VillageParams {
   density: number;
   /** 1-10, Small -> Large */
   buildingMix: number;
+  /** 0-10, Symmetric -> Chaotic */
+  chaos?: number;
   borderWall: boolean;
 }
 
@@ -50,6 +52,8 @@ function blockSizeFor(density: number): number {
  */
 export function generateVillage(params: VillageParams): CellState[] {
   const { size, density, buildingMix, borderWall } = params;
+  const chaos = Math.max(0, Math.min(10, params.chaos ?? 0));
+  const k = chaos / 10;
   const total = size * size;
   const cells: CellState[] = new Array(total);
   for (let i = 0; i < total; i++) cells[i] = { type: "OPEN" };
@@ -108,14 +112,65 @@ export function generateVillage(params: VillageParams): CellState[] {
   const vBands = bands();
   const hBands = bands();
 
-  const isVStreet = (c: number) => vBands.some((b) => c >= b.start && c < b.start + b.width);
-  const isHStreet = (r: number) => hBands.some((b) => r >= b.start && r < b.start + b.width);
+  // Chaos: per-band drift (smooth random walk) and occasional gaps along the run.
+  const maxDrift = Math.round(k * 4);
+  const shiftChance = k * 0.35;
+  const gapChance = k * 0.25;
+
+  type BandRun = { offset: number[]; open: boolean[] };
+  const buildRuns = (bandList: { start: number; width: number }[]): BandRun[] =>
+    bandList.map(() => {
+      const offset: number[] = new Array(size).fill(0);
+      const open: boolean[] = new Array(size).fill(true);
+      let cur = 0;
+      let steps = 0;
+      let gapLeft = 0;
+      let gapUsed = false;
+      for (let i = 0; i < size; i++) {
+        if (maxDrift > 0 && ++steps >= 3) {
+          steps = 0;
+          if (Math.random() < shiftChance) {
+            const d = Math.random() < 0.5 ? -1 : 1;
+            const nxt = cur + d;
+            if (Math.abs(nxt) <= maxDrift) cur = nxt;
+          }
+        }
+        offset[i] = cur;
+        if (gapLeft > 0) {
+          open[i] = false;
+          gapLeft--;
+        } else if (!gapUsed && gapChance > 0 && Math.random() < gapChance / size * 4) {
+          gapUsed = true;
+          gapLeft = 2 + Math.floor(Math.random() * 4);
+          open[i] = false;
+        }
+      }
+      return { offset, open };
+    });
+
+  const vRuns = buildRuns(vBands);
+  const hRuns = buildRuns(hBands);
+
+  const isVStreet = (c: number, r: number) =>
+    vBands.some((b, i) => {
+      const run = vRuns[i];
+      if (!run.open[r]) return false;
+      const s = b.start + run.offset[r];
+      return c >= s && c < s + b.width;
+    });
+  const isHStreet = (r: number, c: number) =>
+    hBands.some((b, i) => {
+      const run = hRuns[i];
+      if (!run.open[c]) return false;
+      const s = b.start + run.offset[c];
+      return r >= s && r < s + b.width;
+    });
 
   for (let r = min; r <= max; r++) {
     for (let c = min; c <= max; c++) {
       if (inPlaza(c, r)) continue;
-      const v = isVStreet(c);
-      const h = isHStreet(r);
+      const v = isVStreet(c, r);
+      const h = isHStreet(r, c);
       if (v && h) set(c, r, "SQUARE");
       else if (v || h) set(c, r, "ROAD");
     }
@@ -135,7 +190,13 @@ export function generateVillage(params: VillageParams): CellState[] {
 
   const colBlocks = blockRanges(vBands);
   const rowBlocks = blockRanges(hBands);
-  const gap = density >= 8 ? (Math.random() < 0.5 ? 0 : 1) : 1;
+  const baseGap = density >= 8 ? (Math.random() < 0.5 ? 0 : 1) : 1;
+  const skipChance = k * 0.3;
+  const gapFor = () => {
+    if (k === 0) return baseGap;
+    const extra = Math.random() < k * 0.5 ? Math.floor(Math.random() * (1 + Math.round(k * 2))) : 0;
+    return baseGap + extra;
+  };
 
   const areaFree = (c0: number, r0: number, w: number, h: number) => {
     for (let r = r0; r < r0 + h; r++) {
@@ -175,34 +236,24 @@ export function generateVillage(params: VillageParams): CellState[] {
             x += 1;
             continue;
           }
+          if (skipChance > 0 && Math.random() < skipChance) {
+            x += 1 + Math.floor(Math.random() * 2);
+            continue;
+          }
           for (let r = y; r < y + fit.h; r++) {
             for (let c = x; c < x + fit.w; c++) set(c, r, fit.type);
           }
           tallest = Math.max(tallest, fit.h);
-          x += fit.w + gap;
+          x += fit.w + gapFor();
         }
         if (tallest === 0) break;
-        y += tallest + gap;
+        y += tallest + gapFor();
       }
     }
   }
 
   // ---- Step 4b: EYE at exact grid center ----
   set(centerC, centerR, "EYE");
-
-  // ---- Step 5: special buildings at fixed offsets (4x3 each) ----
-  const special: { type: CellType; c: number; r: number }[] = [
-    { type: "BUILDING_23", c: centerC - 8, r: centerR },
-    { type: "BUILDING_47", c: centerC + 8, r: centerR },
-    { type: "BUILDING_89", c: centerC, r: centerR - 8 },
-  ];
-  for (const s of special) {
-    const c0 = Math.max(0, Math.min(size - 4, s.c - 2));
-    const r0 = Math.max(0, Math.min(size - 3, s.r - 1));
-    for (let r = r0; r < r0 + 3; r++) {
-      for (let c = c0; c < c0 + 4; c++) set(c, r, s.type);
-    }
-  }
 
   return cells;
 }
