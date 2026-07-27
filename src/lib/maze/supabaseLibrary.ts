@@ -66,15 +66,32 @@ export async function deleteBuilderLevel(id: string): Promise<void> {
 }
 
 export async function publishLevel(data: ExportedLevel): Promise<void> {
+  const published_at = new Date().toISOString();
+
+  if (data.mode === "maze") {
+    const payload = {
+      level_number: data.levelNumber,
+      level_name: data.levelName,
+      grid_size: data.gridSize,
+      data: data as unknown as Json,
+      published_at,
+    };
+    const { error } = await supabase
+      .from("mazes" as never)
+      .upsert(payload as never, { onConflict: "level_number" });
+    if (error) throw error;
+    return;
+  }
+
   const payload = {
-    level_number: data.levelNumber,
+    location_key: data.mode,
     level_name: data.levelName,
     grid_size: data.gridSize,
     data: data as unknown as Json,
-    published_at: new Date().toISOString(),
+    published_at,
   };
   const { error } = await supabase
-    .from("levels")
-    .upsert(payload, { onConflict: "level_number" });
+    .from("special_locations" as never)
+    .upsert(payload as never, { onConflict: "location_key" });
   if (error) throw error;
 }
