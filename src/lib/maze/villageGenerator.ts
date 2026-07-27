@@ -89,6 +89,24 @@ export function generateVillage(params: VillageParams): CellState[] {
   const inPlaza = (c: number, r: number) =>
     c >= plaza.c0 && c <= plaza.c1 && r >= plaza.r0 && r <= plaza.r1;
 
+  // ================= HIGH CHAOS (8-10): corridor carving =================
+  if (chaos >= 8) {
+    carveChaoticVillage({
+      size,
+      min,
+      max,
+      chaos,
+      density,
+      buildingMix,
+      cells,
+      idx,
+      set,
+      inPlaza,
+    });
+    set(centerC, centerR, "EYE");
+    return cells;
+  }
+
   // ---- Step 2: street grid ----
   // Build street bands along both axes; block sizes vary with density.
   const bands = (): { start: number; width: number }[] => {
@@ -256,6 +274,159 @@ export function generateVillage(params: VillageParams): CellState[] {
   set(centerC, centerR, "EYE");
 
   return cells;
+}
+
+interface ChaoticArgs {
+  size: number;
+  min: number;
+  max: number;
+  chaos: number;
+  density: number;
+  buildingMix: number;
+  cells: CellState[];
+  idx: (c: number, r: number) => number;
+  set: (c: number, r: number, type: CellType) => void;
+  inPlaza: (c: number, r: number) => boolean;
+}
+
+/**
+ * Chaos 8-10: abandon straight bands entirely. Streets are carved by randomized
+ * walkers (turn + branch probabilities rising toward chaos 10) until a target
+ * coverage is met, then buildings are packed greedily into whatever open
+ * pockets remain, regardless of pocket shape.
+ */
+function carveChaoticVillage(a: ChaoticArgs) {
+  const { size, min, max, chaos, density, buildingMix, cells, idx, set, inPlaza } = a;
+  const span = max - min + 1;
+  const t = (chaos - 8) / 2; // 0 at chaos 8, 1 at chaos 10
+
+  const turnChance = 0.3 + t * 0.4; // 0.30 -> 0.70
+  const branchChance = 0.05 + t * 0.12; // 0.05 -> 0.17
+  const targetCoverage = 0.16 + density * 0.018; // ~0.18 - 0.34
+  const targetCells = Math.floor(span * span * targetCoverage);
+
+  const street = new Uint8Array(size * size);
+  let carved = 0;
+
+  const inWork = (c: number, r: number) => c >= min && c <= max && r >= min && r <= max;
+  const mark = (c: number, r: number) => {
+    if (!inWork(c, r) || inPlaza(c, r)) return;
+    const i = idx(c, r);
+    if (street[i]) return;
+    street[i] = 1;
+    carved++;
+  };
+
+  const DIRS: [number, number][] = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+
+  type Walker = { c: number; r: number; d: [number, number]; life: number; wide: boolean };
+  const stack: Walker[] = [];
+
+  const seedCount = 3 + Math.floor(span / 22) + Math.floor(t * 3);
+  const seedAt = (c: number, r: number, wide: boolean) =>
+    stack.push({
+      c,
+      r,
+      d: DIRS[Math.floor(Math.random() * 4)],
+      life: Math.floor(span * (1.2 + Math.random())),
+      wide,
+    });
+
+  // Seeds: plaza edges plus scattered points, so the centre stays reachable.
+  seedAt(Math.floor(size / 2), Math.floor(size / 2) - 6, true);
+  seedAt(Math.floor(size / 2), Math.floor(size / 2) + 6, true);
+  seedAt(Math.floor(size / 2) - 6, Math.floor(size / 2), true);
+  seedAt(Math.floor(size / 2) + 6, Math.floor(size / 2), true);
+  for (let s = 0; s < seedCount; s++) {
+    const c = min + Math.floor(Math.random() * span);
+    const r = min + Math.floor(Math.random() * span);
+    seedAt(c, r, Math.random() < 0.4);
+  }
+
+  let guard = span * span * 8;
+  while (stack.length && carved < targetCells && guard-- > 0) {
+    const w = stack[stack.length - 1];
+    if (w.life <= 0) {
+      stack.pop();
+      continue;
+    }
+    if (Math.random() < turnChance) {
+      const perp: [number, number][] = w.d[0] !== 0 ? [[0, 1], [0, -1]] : [[1, 0], [-1, 0]];
+      w.d = perp[Math.floor(Math.random() * 2)];
+    }
+    const steps = 1 + Math.floor(Math.random() * 3);
+    for (let s = 0; s < steps; s++) {
+      const nc = w.c + w.d[0];
+      const nr = w.r + w.d[1];
+      if (!inWork(nc, nr)) {
+        // bounce off the border rather than dying at it
+        w.d = [-w.d[0], -w.d[1]];
+        break;
+      }
+      w.c = nc;
+      w.r = nr;
+      mark(w.c, w.r);
+      if (w.wide) {
+        if (w.d[0] !== 0) mark(w.c, w.r + 1);
+        else mark(w.c + 1, w.r);
+      }
+      w.life--;
+    }
+    if (stack.length < 40 && Math.random() < branchChance) {
+      seedAt(w.c, w.r, Math.random() < 0.3);
+    }
+    // Occasional dead end: retire the walker early.
+    if (Math.random() < 0.02 + t * 0.05) w.life -= Math.floor(span * 0.3);
+  }
+
+  // Paint streets; junctions (3+ street neighbours) become SQUARE.
+  for (let r = min; r <= max; r++) {
+    for (let c = min; c <= max; c++) {
+      if (!street[idx(c, r)] || inPlaza(c, r)) continue;
+      let n = 0;
+      for (const [dc, dr] of DIRS) {
+        const cc = c + dc;
+        const rr = r + dr;
+        if (inWork(cc, rr) && street[idx(cc, rr)]) n++;
+      }
+      set(c, r, n >= 3 ? "SQUARE" : "ROAD");
+    }
+  }
+
+  // Pack buildings greedily into open pockets of any shape.
+  const areaFree = (c0: number, r0: number, w: number, h: number) => {
+    for (let r = r0; r < r0 + h; r++) {
+      for (let c = c0; c < c0 + w; c++) {
+        if (!inWork(c, r) || inPlaza(c, r)) return false;
+        if (cells[idx(c, r)].type !== "OPEN") return false;
+      }
+    }
+    return true;
+  };
+
+  const gapChanceLocal = 0.25 + t * 0.2;
+  for (let r = min; r <= max; r++) {
+    for (let c = min; c <= max; c++) {
+      if (cells[idx(c, r)].type !== "OPEN" || inPlaza(c, r)) continue;
+      if (Math.random() < gapChanceLocal) continue;
+      const rolled = pickBuildingSize(buildingMix);
+      const options: Size[] = [
+        rolled,
+        { w: 3, h: 3, type: "BUILDING_M" },
+        { w: 2, h: 2, type: "BUILDING_S" },
+      ];
+      const fit = options.find((o) => areaFree(c, r, o.w, o.h));
+      if (!fit) continue;
+      for (let rr = r; rr < r + fit.h; rr++) {
+        for (let cc = c; cc < c + fit.w; cc++) set(cc, rr, fit.type);
+      }
+    }
+  }
 }
 
 /** Overlay preserved designer cells from a previous layout onto a new one. */
