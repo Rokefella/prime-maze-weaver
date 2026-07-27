@@ -300,6 +300,7 @@ export function PraemBuilder() {
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
+  const [vChaos, setVChaos] = useState(0);
   const [vBorder, setVBorder] = useState(true);
   const [sDensity, setSDensity] = useState(4);
   const [sAtmosphere, setSAtmosphere] = useState(5);
@@ -518,11 +519,12 @@ export function PraemBuilder() {
     setBranching(p.branching);
   };
 
-  const runPopulate = (density = vDensity, mix = vMix) => {
+  const runPopulate = (density = vDensity, mix = vMix, chaos = vChaos) => {
     const generated = generateVillage({
       size,
       density,
       buildingMix: mix,
+      chaos,
       borderWall: vBorder,
     });
     setCells((prev) => preserveManual(prev, generated));
@@ -540,9 +542,11 @@ export function PraemBuilder() {
     const jitter = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
     const d = Math.max(1, Math.min(10, vDensity + jitter()));
     const m = Math.max(1, Math.min(10, vMix + jitter()));
+    const ch = Math.max(0, Math.min(10, vChaos + jitter()));
     setVDensity(d);
     setVMix(m);
-    runPopulate(d, m);
+    setVChaos(ch);
+    runPopulate(d, m, ch);
   };
 
   const runShadowPopulate = (density = sDensity, atmosphere = sAtmosphere) => {
