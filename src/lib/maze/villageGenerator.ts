@@ -112,14 +112,65 @@ export function generateVillage(params: VillageParams): CellState[] {
   const vBands = bands();
   const hBands = bands();
 
-  const isVStreet = (c: number) => vBands.some((b) => c >= b.start && c < b.start + b.width);
-  const isHStreet = (r: number) => hBands.some((b) => r >= b.start && r < b.start + b.width);
+  // Chaos: per-band drift (smooth random walk) and occasional gaps along the run.
+  const maxDrift = Math.round(k * 4);
+  const shiftChance = k * 0.35;
+  const gapChance = k * 0.25;
+
+  type BandRun = { offset: number[]; open: boolean[] };
+  const buildRuns = (bandList: { start: number; width: number }[]): BandRun[] =>
+    bandList.map(() => {
+      const offset: number[] = new Array(size).fill(0);
+      const open: boolean[] = new Array(size).fill(true);
+      let cur = 0;
+      let steps = 0;
+      let gapLeft = 0;
+      let gapUsed = false;
+      for (let i = 0; i < size; i++) {
+        if (maxDrift > 0 && ++steps >= 3) {
+          steps = 0;
+          if (Math.random() < shiftChance) {
+            const d = Math.random() < 0.5 ? -1 : 1;
+            const nxt = cur + d;
+            if (Math.abs(nxt) <= maxDrift) cur = nxt;
+          }
+        }
+        offset[i] = cur;
+        if (gapLeft > 0) {
+          open[i] = false;
+          gapLeft--;
+        } else if (!gapUsed && gapChance > 0 && Math.random() < gapChance / size * 4) {
+          gapUsed = true;
+          gapLeft = 2 + Math.floor(Math.random() * 4);
+          open[i] = false;
+        }
+      }
+      return { offset, open };
+    });
+
+  const vRuns = buildRuns(vBands);
+  const hRuns = buildRuns(hBands);
+
+  const isVStreet = (c: number, r: number) =>
+    vBands.some((b, i) => {
+      const run = vRuns[i];
+      if (!run.open[r]) return false;
+      const s = b.start + run.offset[r];
+      return c >= s && c < s + b.width;
+    });
+  const isHStreet = (r: number, c: number) =>
+    hBands.some((b, i) => {
+      const run = hRuns[i];
+      if (!run.open[c]) return false;
+      const s = b.start + run.offset[c];
+      return r >= s && r < s + b.width;
+    });
 
   for (let r = min; r <= max; r++) {
     for (let c = min; c <= max; c++) {
       if (inPlaza(c, r)) continue;
-      const v = isVStreet(c);
-      const h = isHStreet(r);
+      const v = isVStreet(c, r);
+      const h = isHStreet(r, c);
       if (v && h) set(c, r, "SQUARE");
       else if (v || h) set(c, r, "ROAD");
     }
