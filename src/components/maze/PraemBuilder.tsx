@@ -766,6 +766,7 @@ export function PraemBuilder() {
   const cancelPendingDoor = () => setPendingDoor(null);
 
   const confirmNpc = () => {
+    // no-op marker
     if (!pendingNpc) return;
     if (!pendingNpc.name.trim()) {
       setFlash({ msg: "NPC name required.", tone: "warn" });
@@ -781,6 +782,22 @@ export function PraemBuilder() {
     });
     setManuallyEdited(true);
     setPendingNpc(null);
+  };
+
+  const confirmExit = () => {
+    if (!pendingExit) return;
+    const pe = pendingExit;
+    setCells((prev) => {
+      const next = prev.slice();
+      next[pe.row * size + pe.col] = {
+        type: "ROOM_EXIT",
+        exit: { destination: pe.destination },
+      };
+      return next;
+    });
+    setPropExitDest(pe.destination);
+    setManuallyEdited(true);
+    setPendingExit(null);
   };
 
   return (
