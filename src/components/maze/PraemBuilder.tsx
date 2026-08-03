@@ -896,7 +896,7 @@ export function PraemBuilder() {
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
-          mode={mode}
+          mode={renderModeFor(mode)}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1070,12 +1070,12 @@ export function PraemBuilder() {
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
         <Section title="Mode">
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {MODES.map((m) => (
               <button
                 key={m.key}
                 onClick={() => changeMode(m.key)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                className={`flex min-w-[30%] flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
                   mode === m.key
                     ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
                     : "border-border text-muted-foreground hover:bg-card/60"
@@ -1091,7 +1091,11 @@ export function PraemBuilder() {
               ? "Ulam spiral maze with primes, fragments and doors."
               : mode === "village"
                 ? "Open village layout: buildings, forest, paths and transfer points."
-                : "Shadow Realm: ghost zones, eyes and transfer points."}
+                : mode === "shadow_realm"
+                  ? "Shadow Realm: ghost zones, eyes and transfer points."
+                  : mode === "library"
+                    ? "Library interior: village toolset, published as its own location."
+                    : "Exchange interior: village toolset, published as its own location."}
           </p>
         </Section>
 
@@ -1199,7 +1203,7 @@ export function PraemBuilder() {
               )}
             </div>
           )}
-          {mode === "village" && tool === "ROOM_EXIT" && (
+          {isVillageLike(mode) && tool === "ROOM_EXIT" && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
                 Room Exit destination

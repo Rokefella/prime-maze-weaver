@@ -27,7 +27,7 @@ interface Props {
   routeA?: { col: number; row: number } | null;
   routeB?: { col: number; row: number } | null;
   routePath?: Set<number> | null;
-  mode?: BuilderMode;
+  mode?: "maze" | "village" | "shadow_realm";
   rectPreview?: { a: { col: number; row: number }; b: { col: number; row: number } } | null;
 }
 
