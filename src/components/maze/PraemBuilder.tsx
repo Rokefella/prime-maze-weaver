@@ -1012,6 +1012,45 @@ export function PraemBuilder() {
             </div>
           </div>
         )}
+
+        {/* Pending room exit destination picker */}
+        {pendingExit && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              Room Exit @ ({pendingExit.col},{pendingExit.row})
+            </div>
+            <div className="mb-1 text-xs text-muted-foreground">Destination</div>
+            <div className="mb-3 flex gap-1.5">
+              {EXIT_DESTINATIONS.map((d) => (
+                <button
+                  key={d.key}
+                  onClick={() => setPendingExit({ ...pendingExit, destination: d.key })}
+                  className={`rounded-md border px-3 py-1 text-[10px] uppercase tracking-wider transition ${
+                    pendingExit.destination === d.key
+                      ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmExit}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+              >
+                Place Exit
+              </button>
+              <button
+                onClick={() => setPendingExit(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Right sidebar */}
