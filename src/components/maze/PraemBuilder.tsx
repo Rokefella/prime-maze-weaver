@@ -70,6 +70,8 @@ const VILLAGE_TYPES: CellType[] = [
   "LANDMARK",
   "EYE",
   "ROOM_EXIT",
+  "BERNARD",
+  "MERCHANT",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -531,6 +533,11 @@ export function PraemBuilder() {
         if (tool === "START" || tool === "GOLDEN_DOOR" || tool === "BLUE_DOOR") {
           for (let i = 0; i < next.length; i++) {
             if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
+          }
+        }
+        if (tool === "BERNARD" || tool === "MERCHANT") {
+          for (let i = 0; i < next.length; i++) {
+            if (next[i].type === tool) next[i] = { type: "OPEN" };
           }
         }
         next[idx] = makeCell();

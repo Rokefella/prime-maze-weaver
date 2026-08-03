@@ -23,6 +23,8 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   WHISPER: true,
   FURNITURE: true,
   ROOM_EXIT: true,
+  BERNARD: true,
+  MERCHANT: true,
 };
 
 export function exportLevel(
