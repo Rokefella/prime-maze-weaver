@@ -1184,6 +1184,28 @@ export function PraemBuilder() {
               )}
             </div>
           )}
+          {mode === "village" && tool === "ROOM_EXIT" && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                Room Exit destination
+              </div>
+              <div className="flex gap-1.5">
+                {EXIT_DESTINATIONS.map((d) => (
+                  <button
+                    key={d.key}
+                    onClick={() => setPropExitDest(d.key)}
+                    className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                      propExitDest === d.key
+                        ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                        : "border-border text-muted-foreground hover:bg-card/60"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
             {paintMode === "rect"
               ? rectStart
