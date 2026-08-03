@@ -26,7 +26,9 @@ export type CellType =
   | "LANDMARK"
   | "WHISPER"
   | "FURNITURE"
-  | "ROOM_EXIT";
+  | "ROOM_EXIT"
+  | "BERNARD"
+  | "MERCHANT";
 
 export type BuilderMode = "maze" | "village" | "shadow_realm" | "library" | "exchange";
 
