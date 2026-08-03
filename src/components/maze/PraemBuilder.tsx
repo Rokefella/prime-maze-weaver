@@ -70,6 +70,8 @@ const VILLAGE_TYPES: CellType[] = [
   "LANDMARK",
   "EYE",
   "ROOM_EXIT",
+  "BERNARD",
+  "MERCHANT",
 ];
 
 const SHADOW_TYPES: CellType[] = [
