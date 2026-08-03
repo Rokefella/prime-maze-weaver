@@ -63,6 +63,8 @@ const VILLAGE_TYPES: CellType[] = [
   "BUILDING_47",
   "BUILDING_89",
   "FOREST",
+  "WALL",
+  "FURNITURE",
   "NPC",
   "WHISPER",
   "LANDMARK",
