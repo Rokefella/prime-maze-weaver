@@ -269,6 +269,11 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             const s2 = Math.max(1, Math.floor(cellPx * 0.22));
             ctx.fillRect(x + s2, y + s2, w - 2 * s2, h - 2 * s2);
           }
+          if (cell.type === "FURNITURE" && cellPx >= 5) {
+            ctx.fillStyle = "rgba(255,225,180,0.35)";
+            const s3 = Math.max(1, Math.floor(cellPx * 0.28));
+            ctx.fillRect(x + s3, y + s3, w - 2 * s3, h - 2 * s3);
+          }
           if (cell.type === "EYE" && cellPx >= 6) {
             ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.4 * pulse})`;
             ctx.beginPath();

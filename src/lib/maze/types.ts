@@ -24,7 +24,8 @@ export type CellType =
   | "SQUARE"
   | "ROAD"
   | "LANDMARK"
-  | "WHISPER";
+  | "WHISPER"
+  | "FURNITURE";
 
 export type BuilderMode = "maze" | "village" | "shadow_realm";
 
