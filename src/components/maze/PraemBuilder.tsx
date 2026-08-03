@@ -83,12 +83,25 @@ const SHADOW_TYPES: CellType[] = [
   "DROP",
 ];
 
+/** Library / Exchange are village-flavoured interiors: same tools, same palette. */
+function isVillageLike(mode: BuilderMode) {
+  return mode === "village" || mode === "library" || mode === "exchange";
+}
+
+/** Palette/render mode: library & exchange reuse village visuals. */
+function renderModeFor(mode: BuilderMode): "maze" | "village" | "shadow_realm" {
+  if (mode === "maze") return "maze";
+  if (mode === "shadow_realm") return "shadow_realm";
+  return "village";
+}
+
 function toolsForMode(mode: BuilderMode) {
   if (mode === "maze") return MAZE_TOOLS;
-  const list = mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
+  const list = isVillageLike(mode) ? VILLAGE_TYPES : SHADOW_TYPES;
+  const rmode = renderModeFor(mode);
   return list.map((type) => ({
     type,
-    swatch: swatchFor(type, mode),
+    swatch: swatchFor(type, rmode),
     label: CELL_LABELS[type] ?? type,
   }));
 }
@@ -97,6 +110,8 @@ const MODES: { key: BuilderMode; label: string; color: string }[] = [
   { key: "maze", label: "Maze", color: "#b87bff" },
   { key: "village", label: "Village", color: "#8a6a1f" },
   { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
+  { key: "library", label: "Library", color: "#6b8fd4" },
+  { key: "exchange", label: "Exchange", color: "#d48f6b" },
 ];
 
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
@@ -881,7 +896,7 @@ export function PraemBuilder() {
           routeA={routeA}
           routeB={routeB}
           routePath={routeResult?.set ?? null}
-          mode={mode}
+          mode={renderModeFor(mode)}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1055,12 +1070,12 @@ export function PraemBuilder() {
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
         <Section title="Mode">
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {MODES.map((m) => (
               <button
                 key={m.key}
                 onClick={() => changeMode(m.key)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                className={`flex min-w-[30%] flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
                   mode === m.key
                     ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
                     : "border-border text-muted-foreground hover:bg-card/60"
@@ -1076,7 +1091,11 @@ export function PraemBuilder() {
               ? "Ulam spiral maze with primes, fragments and doors."
               : mode === "village"
                 ? "Open village layout: buildings, forest, paths and transfer points."
-                : "Shadow Realm: ghost zones, eyes and transfer points."}
+                : mode === "shadow_realm"
+                  ? "Shadow Realm: ghost zones, eyes and transfer points."
+                  : mode === "library"
+                    ? "Library interior: village toolset, published as its own location."
+                    : "Exchange interior: village toolset, published as its own location."}
           </p>
         </Section>
 
@@ -1184,7 +1203,7 @@ export function PraemBuilder() {
               )}
             </div>
           )}
-          {mode === "village" && tool === "ROOM_EXIT" && (
+          {isVillageLike(mode) && tool === "ROOM_EXIT" && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
                 Room Exit destination
