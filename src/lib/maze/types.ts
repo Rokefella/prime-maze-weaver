@@ -28,7 +28,7 @@ export type CellType =
   | "FURNITURE"
   | "ROOM_EXIT";
 
-export type BuilderMode = "maze" | "village" | "shadow_realm";
+export type BuilderMode = "maze" | "village" | "shadow_realm" | "library" | "exchange";
 
 export interface DoorToRoomData {
   roomId: string;

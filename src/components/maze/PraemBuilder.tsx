@@ -83,12 +83,25 @@ const SHADOW_TYPES: CellType[] = [
   "DROP",
 ];
 
+/** Library / Exchange are village-flavoured interiors: same tools, same palette. */
+function isVillageLike(mode: BuilderMode) {
+  return mode === "village" || mode === "library" || mode === "exchange";
+}
+
+/** Palette/render mode: library & exchange reuse village visuals. */
+function renderModeFor(mode: BuilderMode): "maze" | "village" | "shadow_realm" {
+  if (mode === "maze") return "maze";
+  if (mode === "shadow_realm") return "shadow_realm";
+  return "village";
+}
+
 function toolsForMode(mode: BuilderMode) {
   if (mode === "maze") return MAZE_TOOLS;
-  const list = mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
+  const list = isVillageLike(mode) ? VILLAGE_TYPES : SHADOW_TYPES;
+  const rmode = renderModeFor(mode);
   return list.map((type) => ({
     type,
-    swatch: swatchFor(type, mode),
+    swatch: swatchFor(type, rmode),
     label: CELL_LABELS[type] ?? type,
   }));
 }
@@ -97,6 +110,8 @@ const MODES: { key: BuilderMode; label: string; color: string }[] = [
   { key: "maze", label: "Maze", color: "#b87bff" },
   { key: "village", label: "Village", color: "#8a6a1f" },
   { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
+  { key: "library", label: "Library", color: "#6b8fd4" },
+  { key: "exchange", label: "Exchange", color: "#d48f6b" },
 ];
 
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
