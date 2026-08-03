@@ -274,6 +274,22 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             const s3 = Math.max(1, Math.floor(cellPx * 0.28));
             ctx.fillRect(x + s3, y + s3, w - 2 * s3, h - 2 * s3);
           }
+          if (cell.type === "ROOM_EXIT") {
+            ctx.strokeStyle = VILLAGE_PALETTE.buildingBorder;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+            ctx.fillStyle = `rgba(255,215,120,${0.15 + 0.25 * pulse})`;
+            ctx.fillRect(x, y, w, h);
+            if (cellPx >= 12) {
+              const dest = cell.exit?.destination ?? "village";
+              const glyphLetter = dest === "maze" ? "M" : dest === "shadow_realm" ? "S" : "V";
+              ctx.fillStyle = "rgba(255,245,220,0.9)";
+              ctx.font = `${Math.floor(cellPx * 0.45)}px ui-monospace, monospace`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(glyphLetter, x + w / 2, y + h / 2);
+            }
+          }
           if (cell.type === "EYE" && cellPx >= 6) {
             ctx.fillStyle = `rgba(0,0,0,${0.25 + 0.4 * pulse})`;
             ctx.beginPath();

@@ -69,6 +69,7 @@ const VILLAGE_TYPES: CellType[] = [
   "WHISPER",
   "LANDMARK",
   "EYE",
+  "ROOM_EXIT",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -186,6 +187,18 @@ interface PendingNpc {
   name: string;
 }
 
+type ExitDestination = "village" | "maze" | "shadow_realm";
+interface PendingExit {
+  col: number;
+  row: number;
+  destination: ExitDestination;
+}
+const EXIT_DESTINATIONS: { key: ExitDestination; label: string }[] = [
+  { key: "village", label: "Village" },
+  { key: "maze", label: "Maze" },
+  { key: "shadow_realm", label: "Shadow Realm" },
+];
+
 const PROP_TYPES: CellType[] = [
   "NPC",
   "BUILDING_23",
@@ -299,6 +312,8 @@ export function PraemBuilder() {
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
   const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
+  const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
+  const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -389,6 +404,7 @@ export function PraemBuilder() {
             if (propName.trim()) base.npc = { name: propName.trim() };
           }
         }
+        if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         return base;
       };
 
@@ -489,6 +505,11 @@ export function PraemBuilder() {
         return;
       }
 
+      if (tool === "ROOM_EXIT") {
+        setPendingExit({ col, row, destination: propExitDest });
+        return;
+      }
+
       // Unique-cell tools: clear previous occurrence
       setCells((prev) => {
         const next = prev.slice();
@@ -502,7 +523,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propExitDest],
   );
 
   const runGenerate = () => {
@@ -762,6 +783,22 @@ export function PraemBuilder() {
     setPendingNpc(null);
   };
 
+  const confirmExit = () => {
+    if (!pendingExit) return;
+    const pe = pendingExit;
+    setCells((prev) => {
+      const next = prev.slice();
+      next[pe.row * size + pe.col] = {
+        type: "ROOM_EXIT",
+        exit: { destination: pe.destination },
+      };
+      return next;
+    });
+    setPropExitDest(pe.destination);
+    setManuallyEdited(true);
+    setPendingExit(null);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Left sidebar: Library */}
@@ -974,6 +1011,45 @@ export function PraemBuilder() {
             </div>
           </div>
         )}
+
+        {/* Pending room exit destination picker */}
+        {pendingExit && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              Room Exit @ ({pendingExit.col},{pendingExit.row})
+            </div>
+            <div className="mb-1 text-xs text-muted-foreground">Destination</div>
+            <div className="mb-3 flex gap-1.5">
+              {EXIT_DESTINATIONS.map((d) => (
+                <button
+                  key={d.key}
+                  onClick={() => setPendingExit({ ...pendingExit, destination: d.key })}
+                  className={`rounded-md border px-3 py-1 text-[10px] uppercase tracking-wider transition ${
+                    pendingExit.destination === d.key
+                      ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmExit}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+              >
+                Place Exit
+              </button>
+              <button
+                onClick={() => setPendingExit(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Right sidebar */}
@@ -1106,6 +1182,28 @@ export function PraemBuilder() {
                   />
                 </label>
               )}
+            </div>
+          )}
+          {mode === "village" && tool === "ROOM_EXIT" && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                Room Exit destination
+              </div>
+              <div className="flex gap-1.5">
+                {EXIT_DESTINATIONS.map((d) => (
+                  <button
+                    key={d.key}
+                    onClick={() => setPropExitDest(d.key)}
+                    className={`flex-1 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                      propExitDest === d.key
+                        ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/15 text-[color:var(--accent-gold)]"
+                        : "border-border text-muted-foreground hover:bg-card/60"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <p className="mt-2 text-[10px] text-muted-foreground">
