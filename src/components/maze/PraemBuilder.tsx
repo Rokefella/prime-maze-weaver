@@ -766,7 +766,6 @@ export function PraemBuilder() {
   const cancelPendingDoor = () => setPendingDoor(null);
 
   const confirmNpc = () => {
-    // no-op marker
     if (!pendingNpc) return;
     if (!pendingNpc.name.trim()) {
       setFlash({ msg: "NPC name required.", tone: "warn" });
