@@ -69,6 +69,7 @@ const VILLAGE_TYPES: CellType[] = [
   "WHISPER",
   "LANDMARK",
   "EYE",
+  "ROOM_EXIT",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -186,6 +187,18 @@ interface PendingNpc {
   name: string;
 }
 
+type ExitDestination = "village" | "maze" | "shadow_realm";
+interface PendingExit {
+  col: number;
+  row: number;
+  destination: ExitDestination;
+}
+const EXIT_DESTINATIONS: { key: ExitDestination; label: string }[] = [
+  { key: "village", label: "Village" },
+  { key: "maze", label: "Maze" },
+  { key: "shadow_realm", label: "Shadow Realm" },
+];
+
 const PROP_TYPES: CellType[] = [
   "NPC",
   "BUILDING_23",
@@ -299,6 +312,8 @@ export function PraemBuilder() {
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
   const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
+  const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
+  const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -389,6 +404,7 @@ export function PraemBuilder() {
             if (propName.trim()) base.npc = { name: propName.trim() };
           }
         }
+        if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         return base;
       };
 
@@ -489,6 +505,11 @@ export function PraemBuilder() {
         return;
       }
 
+      if (tool === "ROOM_EXIT") {
+        setPendingExit({ col, row, destination: propExitDest });
+        return;
+      }
+
       // Unique-cell tools: clear previous occurrence
       setCells((prev) => {
         const next = prev.slice();
@@ -502,7 +523,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName],
+    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propExitDest],
   );
 
   const runGenerate = () => {
