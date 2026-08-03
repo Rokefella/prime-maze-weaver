@@ -25,7 +25,8 @@ export type CellType =
   | "ROAD"
   | "LANDMARK"
   | "WHISPER"
-  | "FURNITURE";
+  | "FURNITURE"
+  | "ROOM_EXIT";
 
 export type BuilderMode = "maze" | "village" | "shadow_realm";
 
@@ -42,11 +43,17 @@ export interface WhisperData {
   text: string;
 }
 
+/** A door inside a room leading back out to a world. */
+export interface RoomExitData {
+  destination: "village" | "maze" | "shadow_realm";
+}
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
   npc?: NpcData;
   whisper?: WhisperData;
+  exit?: RoomExitData;
 }
 
 export interface LevelMeta {
@@ -91,6 +98,7 @@ export interface ExportedLevel {
     name?: string;
     npc_name?: string;
     whisper?: WhisperData;
+    exit?: RoomExitData;
   }[];
 }
 
