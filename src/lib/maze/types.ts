@@ -29,7 +29,9 @@ export type CellType =
   | "BOOKCASE"
   | "ROOM_EXIT"
   | "BERNARD"
-  | "MERCHANT";
+  | "MERCHANT"
+  | "LIGHT"
+  | "RUG";
 
 export type BuilderMode = "maze" | "village" | "shadow_realm" | "library" | "exchange";
 
