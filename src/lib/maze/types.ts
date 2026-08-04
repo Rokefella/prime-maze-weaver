@@ -26,6 +26,7 @@ export type CellType =
   | "LANDMARK"
   | "WHISPER"
   | "FURNITURE"
+  | "BOOKCASE"
   | "ROOM_EXIT"
   | "BERNARD"
   | "MERCHANT";
