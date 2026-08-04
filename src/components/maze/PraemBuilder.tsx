@@ -137,6 +137,10 @@ const WALKABLE_FOR_ROUTE: Record<string, true> = {
   ROAD: true,
   LANDMARK: true,
   WHISPER: true,
+  FURNITURE: true,
+  BOOKCASE: true,
+  LIGHT: true,
+  RUG: true,
 };
 
 function bfsPath(
