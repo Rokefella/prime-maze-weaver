@@ -403,16 +403,27 @@ export function PraemBuilder() {
     return () => clearTimeout(t);
   }, [flash]);
 
-  // When size changes, reset cells to blank.
+  // When size changes, preserve existing content at its original col/row.
   const resizeGrid = (newSize: number) => {
-    if (manuallyEdited) {
-      if (!confirm("Changing grid size will clear the current layout. Continue?")) {
+    const shrinking = newSize < size;
+    if (manuallyEdited && shrinking) {
+      if (
+        !confirm(
+          "Shrinking the grid will drop cells outside the new bounds. Continue?",
+        )
+      ) {
         return;
       }
     }
+    const next = makeBlankCells(newSize, mode);
+    const copy = Math.min(size, newSize);
+    for (let r = 0; r < copy; r++) {
+      for (let c = 0; c < copy; c++) {
+        next[r * newSize + c] = cells[r * size + c];
+      }
+    }
     setSize(newSize);
-    setCells(makeBlankCells(newSize, mode));
-    setManuallyEdited(false);
+    setCells(next);
     setPendingDoor(null);
     setPendingNpc(null);
   };
@@ -676,6 +687,10 @@ export function PraemBuilder() {
 
   const saveToLibrary = async () => {
     if (saving) return;
+    if (!meta.levelNumber || meta.levelNumber < 1) {
+      setFlash({ msg: "Set a level number before saving.", tone: "warn" });
+      return;
+    }
     setSaving(true);
     try {
       const data = exportLevel(cells, ulam, meta);
@@ -702,6 +717,16 @@ export function PraemBuilder() {
     setHighlight(null);
     setCurrentId(sl.id);
     setStatus((sl.status as LevelStatus) ?? "draft");
+  };
+
+  // Detach the current editor state from its saved row so the next save
+  // creates a brand new level. Requires a fresh level number.
+  const duplicateAsNew = () => {
+    setCurrentId(null);
+    setStatus("draft");
+    setMeta((m) => ({ ...m, levelNumber: 0, levelName: `${m.levelName} (copy)` }));
+    setManuallyEdited(true);
+    setFlash({ msg: "Duplicated — set a new level number before saving.", tone: "info" });
   };
 
   const deleteFromLibrary = async (id: string) => {
