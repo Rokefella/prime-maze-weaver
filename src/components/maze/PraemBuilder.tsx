@@ -1678,6 +1678,12 @@ export function PraemBuilder() {
               Export JSON
             </button>
             <button
+              onClick={duplicateAsNew}
+              className="col-span-2 rounded-md border border-border px-2 py-1.5 text-xs text-foreground hover:bg-card/60"
+            >
+              Duplicate as New
+            </button>
+            <button
               onClick={() => fileRef.current?.click()}
               className="col-span-2 rounded-md border border-border px-2 py-1.5 text-xs text-foreground hover:bg-card/60"
             >
