@@ -141,69 +141,6 @@ const MODES: { key: BuilderMode; label: string; color: string }[] = [
   { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
 ];
 
-const WALKABLE_FOR_ROUTE: Record<string, true> = {
-  CORRIDOR: true,
-  FRAGMENT: true,
-  START: true,
-  GOLDEN_DOOR: true,
-  BLUE_DOOR: true,
-  DOOR_TO_ROOM: true,
-  NPC: true,
-  DROP: true,
-  OPEN: true,
-  PATH: true,
-  EYE: true,
-  TRANSFER_POINT: true,
-  GHOST_ZONE: true,
-  SQUARE: true,
-  ROAD: true,
-  LANDMARK: true,
-  WHISPER: true,
-  FURNITURE: true,
-  BOOKCASE: true,
-  LIGHT: true,
-  RUG: true,
-};
-
-function bfsPath(
-  cells: CellState[],
-  size: number,
-  a: { col: number; row: number },
-  b: { col: number; row: number },
-): number[] | null {
-  const isOpen = (i: number) => WALKABLE_FOR_ROUTE[cells[i].type] === true;
-  const start = a.row * size + a.col;
-  const goal = b.row * size + b.col;
-  if (!isOpen(start) || !isOpen(goal)) return null;
-  if (start === goal) return [start];
-  const total = size * size;
-  const prev = new Int32Array(total).fill(-1);
-  const visited = new Uint8Array(total);
-  const queue = new Int32Array(total);
-  let qh = 0, qt = 0;
-  queue[qt++] = start;
-  visited[start] = 1;
-  while (qh < qt) {
-    const cur = queue[qh++];
-    if (cur === goal) break;
-    const cr = (cur / size) | 0;
-    const cc = cur - cr * size;
-    // 4-dir
-    if (cc > 0) { const n = cur - 1; if (!visited[n] && isOpen(n)) { visited[n] = 1; prev[n] = cur; queue[qt++] = n; } }
-    if (cc < size - 1) { const n = cur + 1; if (!visited[n] && isOpen(n)) { visited[n] = 1; prev[n] = cur; queue[qt++] = n; } }
-    if (cr > 0) { const n = cur - size; if (!visited[n] && isOpen(n)) { visited[n] = 1; prev[n] = cur; queue[qt++] = n; } }
-    if (cr < size - 1) { const n = cur + size; if (!visited[n] && isOpen(n)) { visited[n] = 1; prev[n] = cur; queue[qt++] = n; } }
-  }
-  if (!visited[goal]) return null;
-  const path: number[] = [];
-  for (let n = goal; n !== -1; n = prev[n]) {
-    path.push(n);
-    if (n === start) break;
-  }
-  path.reverse();
-  return path;
-}
-
 function makeBlankCells(size: number, mode: BuilderMode = "maze"): CellState[] {
   const total = size * size;
   const cells: CellState[] = new Array(total);
@@ -351,9 +288,6 @@ export function PraemBuilder() {
   const [rotation, setRotation] = useState<0 | 1 | 3>(0); // 0=Purple, 1=Amber CCW, 3=Teal CW
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [routeMode, setRouteMode] = useState(false);
-  const [routeA, setRouteA] = useState<{ col: number; row: number } | null>(null);
-  const [routeB, setRouteB] = useState<{ col: number; row: number } | null>(null);
   const [paintMode, setPaintMode] = useState<"cell" | "rect">("cell");
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
@@ -390,19 +324,6 @@ export function PraemBuilder() {
     setPendingNpc(null);
     setHighlight(null);
     setRotation(0);
-    clearRoute();
-  };
-
-  const routeResult = useMemo(() => {
-    if (!routeA || !routeB) return null;
-    const path = bfsPath(cells, size, routeA, routeB);
-    if (!path) return { path: null as number[] | null, set: null as Set<number> | null, steps: -1 };
-    return { path, set: new Set(path), steps: path.length - 1 };
-  }, [routeA, routeB, cells, size]);
-
-  const clearRoute = () => {
-    setRouteA(null);
-    setRouteB(null);
   };
 
   useEffect(() => {
@@ -464,26 +385,6 @@ export function PraemBuilder() {
         if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         return base;
       };
-
-      // Route mode intercepts clicks: A -> B -> reset cycle. Right-click clears route.
-      if (routeMode) {
-        if (e.button === 2) {
-          setRouteA(null);
-          setRouteB(null);
-          return;
-        }
-        if (!routeA) {
-          setRouteA({ col, row });
-          setRouteB(null);
-        } else if (!routeB) {
-          setRouteB({ col, row });
-        } else {
-          // Third click: reset and start a new A
-          setRouteA({ col, row });
-          setRouteB(null);
-        }
-        return;
-      }
 
       // Right-click clears to corridor
       if (e.button === 2) {
@@ -585,7 +486,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, routeMode, routeA, routeB, mode, paintMode, rectStart, propName, propExitDest],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest],
   );
 
   const runGenerate = () => {
@@ -954,9 +855,6 @@ export function PraemBuilder() {
           onCellHover={(c, r) => setHoverCell(r === null ? null : { col: c, row: r })}
           rotation={rotation}
           readOnly={rotation !== 0}
-          routeA={routeA}
-          routeB={routeB}
-          routePath={routeResult?.set ?? null}
           mode={renderModeFor(mode)}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
@@ -1320,54 +1218,6 @@ export function PraemBuilder() {
                 ? "Click the opposite corner to fill the rectangle."
                 : "Click the first corner of the rectangle."
               : "Left-click to paint. Right-click to clear. Shift+drag or middle-click to pan. Scroll to zoom."}
-          </p>
-        </Section>
-
-        <Section title="Route">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setRouteMode((v) => !v)}
-              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition ${
-                routeMode
-                  ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
-                  : "border-border hover:bg-card/60"
-              }`}
-            >
-              {routeMode ? "Route: ON" : "Route Tool"}
-            </button>
-            <button
-              onClick={clearRoute}
-              className="rounded-md border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-card/60"
-            >
-              Clear
-            </button>
-          </div>
-          <div className="mt-2 text-xs">
-            {!routeA && !routeB && (
-              <span className="text-muted-foreground">
-                {routeMode ? "Click a cell to set point A." : "Enable to measure path length."}
-              </span>
-            )}
-            {routeA && !routeB && (
-              <span className="text-muted-foreground">
-                A set at ({routeA.col},{routeA.row}). Click point B.
-              </span>
-            )}
-            {routeA && routeB && routeResult && (
-              <span>
-                {routeResult.steps >= 0 ? (
-                  <>
-                    <span className="text-foreground">Steps: </span>
-                    <span className="font-mono text-[color:var(--accent-gold)]">{routeResult.steps}</span>
-                  </>
-                ) : (
-                  <span className="text-destructive">No path</span>
-                )}
-              </span>
-            )}
-          </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">
-            BFS over walkable cells. Walls and veils block. 4-directional.
           </p>
         </Section>
 
