@@ -1484,7 +1484,7 @@ export function PraemBuilder() {
             <Field label="Room">
               <select
                 value={mode}
-                onChange={(e) => changeMode(e.target.value as BuilderMode)}
+                onChange={(e) => setMeta((m) => ({ ...m, mode: e.target.value as BuilderMode }))}
                 className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
               >
                 {ROOM_MODES.map((r) => (
