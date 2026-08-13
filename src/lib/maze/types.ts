@@ -33,7 +33,13 @@ export type CellType =
   | "LIGHT"
   | "RUG";
 
-export type BuilderMode = "maze" | "village" | "shadow_realm" | "library" | "exchange";
+export type BuilderMode =
+  | "maze"
+  | "village"
+  | "shadow_realm"
+  | "library"
+  | "exchange"
+  | "bernard_room";
 
 export interface DoorToRoomData {
   roomId: string;
