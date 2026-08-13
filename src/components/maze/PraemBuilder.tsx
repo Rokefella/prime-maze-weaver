@@ -88,8 +88,11 @@ const SHADOW_TYPES: CellType[] = [
   "DROP",
 ];
 
-/** Interior room types grouped under the "Rooms" UI mode. Add new ones here. */
-const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb: string }[] = [
+/**
+ * Interior room types grouped under the "Rooms" UI mode.
+ * Adding a new room is a one-line addition to this array.
+ */
+export const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb: string }[] = [
   { key: "library", label: "Library", color: "#6b8fd4", blurb: "Library interior." },
   { key: "exchange", label: "Exchange", color: "#d48f6b", blurb: "Exchange interior." },
   { key: "bernard_room", label: "Bernard Room", color: "#c98a1f", blurb: "Bernard's room interior." },
@@ -1058,23 +1061,6 @@ export function PraemBuilder() {
               Rooms
             </button>
           </div>
-          {isRoomMode(mode) && (
-            <div className="mt-2 flex flex-wrap gap-1.5 rounded-md border border-border/60 bg-background/40 p-1.5">
-              {ROOM_MODES.map((r) => (
-                <button
-                  key={r.key}
-                  onClick={() => changeMode(r.key)}
-                  className={`flex-1 rounded border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
-                    mode === r.key
-                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
-                      : "border-transparent text-muted-foreground hover:bg-card/60"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
             {mode === "maze"
               ? "Ulam spiral maze with primes, fragments and doors."
@@ -1494,6 +1480,21 @@ export function PraemBuilder() {
               className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
             />
           </Field>
+          {isRoomMode(mode) && (
+            <Field label="Room">
+              <select
+                value={mode}
+                onChange={(e) => changeMode(e.target.value as BuilderMode)}
+                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+              >
+                {ROOM_MODES.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Required Fragments">
             <input
               type="number"
