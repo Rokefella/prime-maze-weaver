@@ -1146,7 +1146,37 @@ export function PraemBuilder() {
                 {m.label}
               </button>
             ))}
+            <button
+              onClick={() => {
+                if (!isRoomMode(mode)) changeMode(ROOM_MODES[0].key);
+              }}
+              className={`flex min-w-[30%] flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                isRoomMode(mode)
+                  ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
+                  : "border-border text-muted-foreground hover:bg-card/60"
+              }`}
+            >
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#6b8fd4" }} />
+              Rooms
+            </button>
           </div>
+          {isRoomMode(mode) && (
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-md border border-border/60 bg-background/40 p-1.5">
+              {ROOM_MODES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => changeMode(r.key)}
+                  className={`flex-1 rounded border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    mode === r.key
+                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                      : "border-transparent text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
             {mode === "maze"
               ? "Ulam spiral maze with primes, fragments and doors."
@@ -1154,9 +1184,7 @@ export function PraemBuilder() {
                 ? "Open village layout: buildings, forest, paths and transfer points."
                 : mode === "shadow_realm"
                   ? "Shadow Realm: ghost zones, eyes and transfer points."
-                  : mode === "library"
-                    ? "Library interior: village toolset, published as its own location."
-                    : "Exchange interior: village toolset, published as its own location."}
+                  : `${ROOM_MODES.find((r) => r.key === mode)?.blurb ?? "Room interior."} Interior toolset, published as its own location.`}
           </p>
         </Section>
 
