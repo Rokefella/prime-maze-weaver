@@ -88,9 +88,33 @@ const SHADOW_TYPES: CellType[] = [
   "DROP",
 ];
 
-/** Library / Exchange are village-flavoured interiors: same tools, same palette. */
+/** Interior room types grouped under the "Rooms" UI mode. Add new ones here. */
+const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb: string }[] = [
+  { key: "library", label: "Library", color: "#6b8fd4", blurb: "Library interior." },
+  { key: "exchange", label: "Exchange", color: "#d48f6b", blurb: "Exchange interior." },
+  { key: "bernard_room", label: "Bernard Room", color: "#c98a1f", blurb: "Bernard's room interior." },
+];
+
+function isRoomMode(mode: BuilderMode) {
+  return ROOM_MODES.some((r) => r.key === mode);
+}
+
+/** Trimmed interior palette for Room modes. */
+const ROOM_TYPES: CellType[] = [
+  "WALL",
+  "FURNITURE",
+  "BOOKCASE",
+  "LIGHT",
+  "RUG",
+  "ROOM_EXIT",
+  "NPC",
+  "BERNARD",
+  "MERCHANT",
+];
+
+/** Rooms are village-flavoured interiors: same palette colours. */
 function isVillageLike(mode: BuilderMode) {
-  return mode === "village" || mode === "library" || mode === "exchange";
+  return mode === "village" || isRoomMode(mode);
 }
 
 /** Palette/render mode: library & exchange reuse village visuals. */
@@ -102,7 +126,7 @@ function renderModeFor(mode: BuilderMode): "maze" | "village" | "shadow_realm" {
 
 function toolsForMode(mode: BuilderMode) {
   if (mode === "maze") return MAZE_TOOLS;
-  const list = isVillageLike(mode) ? VILLAGE_TYPES : SHADOW_TYPES;
+  const list = isRoomMode(mode) ? ROOM_TYPES : mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
   const rmode = renderModeFor(mode);
   return list.map((type) => ({
     type,
@@ -115,8 +139,6 @@ const MODES: { key: BuilderMode; label: string; color: string }[] = [
   { key: "maze", label: "Maze", color: "#b87bff" },
   { key: "village", label: "Village", color: "#8a6a1f" },
   { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
-  { key: "library", label: "Library", color: "#6b8fd4" },
-  { key: "exchange", label: "Exchange", color: "#d48f6b" },
 ];
 
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
