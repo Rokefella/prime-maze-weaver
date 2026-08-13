@@ -88,9 +88,33 @@ const SHADOW_TYPES: CellType[] = [
   "DROP",
 ];
 
-/** Library / Exchange are village-flavoured interiors: same tools, same palette. */
+/** Interior room types grouped under the "Rooms" UI mode. Add new ones here. */
+const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb: string }[] = [
+  { key: "library", label: "Library", color: "#6b8fd4", blurb: "Library interior." },
+  { key: "exchange", label: "Exchange", color: "#d48f6b", blurb: "Exchange interior." },
+  { key: "bernard_room", label: "Bernard Room", color: "#c98a1f", blurb: "Bernard's room interior." },
+];
+
+function isRoomMode(mode: BuilderMode) {
+  return ROOM_MODES.some((r) => r.key === mode);
+}
+
+/** Trimmed interior palette for Room modes. */
+const ROOM_TYPES: CellType[] = [
+  "WALL",
+  "FURNITURE",
+  "BOOKCASE",
+  "LIGHT",
+  "RUG",
+  "ROOM_EXIT",
+  "NPC",
+  "BERNARD",
+  "MERCHANT",
+];
+
+/** Rooms are village-flavoured interiors: same palette colours. */
 function isVillageLike(mode: BuilderMode) {
-  return mode === "village" || mode === "library" || mode === "exchange";
+  return mode === "village" || isRoomMode(mode);
 }
 
 /** Palette/render mode: library & exchange reuse village visuals. */
@@ -102,7 +126,7 @@ function renderModeFor(mode: BuilderMode): "maze" | "village" | "shadow_realm" {
 
 function toolsForMode(mode: BuilderMode) {
   if (mode === "maze") return MAZE_TOOLS;
-  const list = isVillageLike(mode) ? VILLAGE_TYPES : SHADOW_TYPES;
+  const list = isRoomMode(mode) ? ROOM_TYPES : mode === "village" ? VILLAGE_TYPES : SHADOW_TYPES;
   const rmode = renderModeFor(mode);
   return list.map((type) => ({
     type,
@@ -115,8 +139,6 @@ const MODES: { key: BuilderMode; label: string; color: string }[] = [
   { key: "maze", label: "Maze", color: "#b87bff" },
   { key: "village", label: "Village", color: "#8a6a1f" },
   { key: "shadow_realm", label: "Shadow", color: "#a78bfa" },
-  { key: "library", label: "Library", color: "#6b8fd4" },
-  { key: "exchange", label: "Exchange", color: "#d48f6b" },
 ];
 
 const WALKABLE_FOR_ROUTE: Record<string, true> = {
@@ -1124,7 +1146,37 @@ export function PraemBuilder() {
                 {m.label}
               </button>
             ))}
+            <button
+              onClick={() => {
+                if (!isRoomMode(mode)) changeMode(ROOM_MODES[0].key);
+              }}
+              className={`flex min-w-[30%] flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] uppercase tracking-wider transition ${
+                isRoomMode(mode)
+                  ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10 text-[color:var(--accent-gold)]"
+                  : "border-border text-muted-foreground hover:bg-card/60"
+              }`}
+            >
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#6b8fd4" }} />
+              Rooms
+            </button>
           </div>
+          {isRoomMode(mode) && (
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-md border border-border/60 bg-background/40 p-1.5">
+              {ROOM_MODES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => changeMode(r.key)}
+                  className={`flex-1 rounded border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    mode === r.key
+                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                      : "border-transparent text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="mt-2 text-[10px] text-muted-foreground">
             {mode === "maze"
               ? "Ulam spiral maze with primes, fragments and doors."
@@ -1132,9 +1184,7 @@ export function PraemBuilder() {
                 ? "Open village layout: buildings, forest, paths and transfer points."
                 : mode === "shadow_realm"
                   ? "Shadow Realm: ghost zones, eyes and transfer points."
-                  : mode === "library"
-                    ? "Library interior: village toolset, published as its own location."
-                    : "Exchange interior: village toolset, published as its own location."}
+                  : `${ROOM_MODES.find((r) => r.key === mode)?.blurb ?? "Room interior."} Interior toolset, published as its own location.`}
           </p>
         </Section>
 
