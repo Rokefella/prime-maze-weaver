@@ -30,6 +30,7 @@ export type CellType =
   | "ROOM_EXIT"
   | "BERNARD"
   | "MERCHANT"
+  | "BANKER"
   | "LIGHT"
   | "RUG";
 
