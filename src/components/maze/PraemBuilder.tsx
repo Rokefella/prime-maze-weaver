@@ -481,7 +481,7 @@ export function PraemBuilder() {
             if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
           }
         }
-        if (tool === "BERNARD" || tool === "MERCHANT") {
+        if (tool === "BERNARD" || tool === "MERCHANT" || tool === "BANKER") {
           for (let i = 0; i < next.length; i++) {
             if (next[i].type === tool) next[i] = { type: "OPEN" };
           }
