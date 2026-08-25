@@ -73,6 +73,7 @@ const VILLAGE_TYPES: CellType[] = [
   "ROOM_EXIT",
   "BERNARD",
   "MERCHANT",
+  "BANKER",
   "LIGHT",
   "RUG",
 ];
