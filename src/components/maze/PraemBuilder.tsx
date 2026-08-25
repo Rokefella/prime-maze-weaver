@@ -114,6 +114,7 @@ const ROOM_TYPES: CellType[] = [
   "NPC",
   "BERNARD",
   "MERCHANT",
+  "BANKER",
 ];
 
 /** Rooms are village-flavoured interiors: same palette colours. */
