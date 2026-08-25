@@ -2,6 +2,7 @@
 // Do NOT replace with env-variable lookups — Lovable Cloud must not overwrite this.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { brokeredPreviewStorage } from './previewAuthStorage';
 
 const SUPABASE_URL = 'https://jngofylkynipsnzyyzdq.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VlI-wgKZYSCs1Xzv1wuA9Q_X8prD_uZ';
@@ -9,7 +10,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VlI-wgKZYSCs1Xzv1wuA9Q_X8prD_uZ
 function createSupabaseClient() {
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
     }
