@@ -26,6 +26,7 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   ROOM_EXIT: true,
   BERNARD: true,
   MERCHANT: true,
+  BANKER: true,
   LIGHT: true,
   RUG: true,
 };

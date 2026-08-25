@@ -110,6 +110,7 @@ export const CELL_LABELS: Record<string, string> = {
   ROOM_EXIT: "Room Exit",
   BERNARD: "Bernard",
   MERCHANT: "Merchant",
+  BANKER: "Banker",
   LIGHT: "Light",
   RUG: "Rug",
 };
@@ -129,6 +130,7 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
       case "ROOM_EXIT": return "#8a6a1f";
       case "BERNARD": return "#c98a1f";
       case "MERCHANT": return "#2f9e5f";
+      case "BANKER": return "#5b8aa0"; // steel-blue
       case "LIGHT": return "#e6b85c";
       case "RUG": return "#7d2e3e";
       case "WALL": return PALETTE.wall;

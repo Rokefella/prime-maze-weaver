@@ -73,6 +73,7 @@ const VILLAGE_TYPES: CellType[] = [
   "ROOM_EXIT",
   "BERNARD",
   "MERCHANT",
+  "BANKER",
   "LIGHT",
   "RUG",
 ];
@@ -113,6 +114,7 @@ const ROOM_TYPES: CellType[] = [
   "NPC",
   "BERNARD",
   "MERCHANT",
+  "BANKER",
 ];
 
 /** Rooms are village-flavoured interiors: same palette colours. */
@@ -479,7 +481,7 @@ export function PraemBuilder() {
             if (next[i].type === tool) next[i] = { type: "CORRIDOR" };
           }
         }
-        if (tool === "BERNARD" || tool === "MERCHANT") {
+        if (tool === "BERNARD" || tool === "MERCHANT" || tool === "BANKER") {
           for (let i = 0; i < next.length; i++) {
             if (next[i].type === tool) next[i] = { type: "OPEN" };
           }
