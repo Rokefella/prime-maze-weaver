@@ -110,6 +110,7 @@ export const CELL_LABELS: Record<string, string> = {
   ROOM_EXIT: "Room Exit",
   BERNARD: "Bernard",
   MERCHANT: "Merchant",
+  BANKER: "Banker",
   LIGHT: "Light",
   RUG: "Rug",
 };
