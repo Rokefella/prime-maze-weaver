@@ -6,6 +6,7 @@ export const LIBRARY_KEY = "praem_levels_v1";
 // Cell types that only exist in Village / Shadow Realm modes.
 const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   OPEN: true,
+  WALL: true,
   BUILDING_S: true,
   BUILDING_M: true,
   BUILDING_L: true,
