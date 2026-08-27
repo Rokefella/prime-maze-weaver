@@ -113,6 +113,7 @@ export const CELL_LABELS: Record<string, string> = {
   BANKER: "Banker",
   LIGHT: "Light",
   RUG: "Rug",
+  ROOM_DOOR: "Room Door",
 };
 
 export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm"): string {
@@ -162,6 +163,23 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
   }
   return PALETTE.corridor;
 }
+/** Extensible room-door colors. Add a line to extend. */
+export const ROOM_DOOR_COLORS: { key: string; hex: string }[] = [
+  { key: "blue", hex: "#3b82f6" },
+  { key: "red", hex: "#ef4444" },
+  { key: "purple", hex: "#a855f7" },
+  { key: "amber", hex: "#f59e0b" },
+  { key: "teal", hex: "#14b8a6" },
+  { key: "green", hex: "#22c55e" },
+];
+
+/** Resolve a stored color value (key or raw css/hex) to a renderable color. */
+export function roomDoorColor(value?: string): string {
+  if (!value) return ROOM_DOOR_COLORS[0].hex;
+  const preset = ROOM_DOOR_COLORS.find((c) => c.key === value.toLowerCase());
+  return preset ? preset.hex : value;
+}
+
 /** Known PRÆM characters selectable for NPC cells. */
 export const PRAEM_CHARACTERS = [
   "Bernard",
