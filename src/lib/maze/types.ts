@@ -50,6 +50,8 @@ export interface DoorToRoomData {
 
 export interface NpcData {
   name: string;
+  /** Key of a row in the npcs table (generic NPC placement). */
+  npcKey?: string;
 }
 
 export interface WhisperData {
@@ -117,6 +119,7 @@ export interface ExportedLevel {
     type: CellType;
     name?: string;
     npc_name?: string;
+    npc_key?: string;
     whisper?: WhisperData;
     exit?: RoomExitData;
     roomDoor?: RoomDoorData;

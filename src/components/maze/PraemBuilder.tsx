@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
+import { supabase } from "@/integrations/supabase/client";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells } from "@/lib/maze/fragments";
@@ -305,6 +306,9 @@ export function PraemBuilder() {
   const [rectStart, setRectStart] = useState<{ col: number; row: number } | null>(null);
   const [hoverCell, setHoverCell] = useState<{ col: number; row: number } | null>(null);
   const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
+  const [npcRows, setNpcRows] = useState<{ id: string; npc_key: string; name: string }[]>([]);
+  const [npcLoadError, setNpcLoadError] = useState<string | null>(null);
+  const [propNpcKey, setPropNpcKey] = useState<string>("");
   const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
   const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
   const [pendingRoomDoor, setPendingRoomDoor] = useState<{
@@ -390,6 +394,42 @@ export function PraemBuilder() {
     setPendingNpc(null);
   };
 
+  // Load the live NPC roster when the NPC tool is active in village/room modes.
+  useEffect(() => {
+    if (tool !== "NPC" || mode === "maze") return;
+    if (npcRows.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      // The npcs table lives outside the generated types, so query untyped.
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            order: (
+              c: string,
+              o: { ascending: boolean },
+            ) => Promise<{ data: unknown; error: { message: string } | null }>;
+          };
+        };
+      };
+      const { data, error } = await db
+        .from("npcs")
+        .select("id, npc_key, name")
+        .order("npc_key", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setNpcLoadError(error.message);
+        return;
+      }
+      const rows = (data ?? []) as { id: string; npc_key: string; name: string }[];
+      setNpcLoadError(null);
+      setNpcRows(rows);
+      if (rows.length > 0) setPropNpcKey((k) => k || rows[0].npc_key);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tool, mode, npcRows.length]);
+
   const onCellClick = useCallback(
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
@@ -397,7 +437,13 @@ export function PraemBuilder() {
       const makeCell = (): CellState => {
         const base: CellState = { type: tool };
         if (PROP_TYPES.includes(tool)) {
-          if (tool === "NPC" || tool === "LANDMARK") {
+          if (tool === "NPC" && mode !== "maze") {
+            const row = npcRows.find((r) => r.npc_key === propNpcKey);
+            if (row) base.npc = { name: row.name || row.npc_key, npcKey: row.npc_key };
+            else if (propNpcKey.trim())
+              base.npc = { name: propNpcKey.trim(), npcKey: propNpcKey.trim() };
+            else if (propName.trim()) base.npc = { name: propName.trim() };
+          } else if (tool === "NPC" || tool === "LANDMARK") {
             if (propName.trim()) base.npc = { name: propName.trim() };
           }
         }
@@ -511,7 +557,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey],
   );
 
   const runGenerate = () => {
@@ -1235,19 +1281,34 @@ export function PraemBuilder() {
               {tool === "NPC" && (
                 <label className="mb-2 block">
                   <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Character
+                    NPC
                   </span>
-                  <select
-                    value={propName}
-                    onChange={(e) => setPropName(e.target.value)}
-                    style={CHAR_SELECT_STYLE}
-                  >
-                    {PRAEM_CHARACTERS.map((n) => (
-                      <option key={n} value={n} style={{ background: "#0d0d1a" }}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                  {npcRows.length > 0 ? (
+                    <select
+                      value={propNpcKey}
+                      onChange={(e) => setPropNpcKey(e.target.value)}
+                      style={CHAR_SELECT_STYLE}
+                    >
+                      {npcRows.map((r) => (
+                        <option key={r.id} value={r.npc_key} style={{ background: "#0d0d1a" }}>
+                          {r.name ? `${r.name} (${r.npc_key})` : r.npc_key}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={propNpcKey}
+                        placeholder="npc_key"
+                        onChange={(e) => setPropNpcKey(e.target.value)}
+                        className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                      />
+                      <span className="mt-1 block text-[10px] text-muted-foreground">
+                        {npcLoadError ? `Roster unavailable: ${npcLoadError}` : "Loading NPC roster…"}
+                      </span>
+                    </>
+                  )}
                 </label>
               )}
               {tool === "LANDMARK" && (
