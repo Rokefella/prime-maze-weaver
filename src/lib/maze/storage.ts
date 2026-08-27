@@ -30,6 +30,7 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   BANKER: true,
   LIGHT: true,
   RUG: true,
+  ROOM_DOOR: true,
 };
 
 export function exportLevel(
@@ -64,6 +65,9 @@ export function exportLevel(
           ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
           ...(cell.whisper ? { whisper: cell.whisper } : {}),
           ...(cell.exit ? { exit: cell.exit } : {}),
+          ...(cell.roomDoor
+            ? { roomDoor: cell.roomDoor, color: cell.roomDoor.color }
+            : {}),
         });
         if (cell.type === "WHISPER") {
           whispers.push({
@@ -205,6 +209,9 @@ export function importLevel(data: ExportedLevel): {
       ...(e.name || e.npc_name ? { npc: { name: (e.name ?? e.npc_name)! } } : {}),
       ...(e.whisper ? { whisper: e.whisper } : {}),
       ...(e.exit ? { exit: e.exit } : {}),
+      ...(e.roomDoor || e.color
+        ? { roomDoor: e.roomDoor ?? { color: e.color! } }
+        : {}),
     });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)

@@ -32,7 +32,8 @@ export type CellType =
   | "MERCHANT"
   | "BANKER"
   | "LIGHT"
-  | "RUG";
+  | "RUG"
+  | "ROOM_DOOR";
 
 export type BuilderMode =
   | "maze"
@@ -60,12 +61,19 @@ export interface RoomExitData {
   destination: "village" | "maze" | "shadow_realm";
 }
 
+/** A colored door inside a maze leading to a room. */
+export interface RoomDoorData {
+  /** Color key (e.g. "blue") or any css/hex value. Extensible, not an enum. */
+  color: string;
+}
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
   npc?: NpcData;
   whisper?: WhisperData;
   exit?: RoomExitData;
+  roomDoor?: RoomDoorData;
 }
 
 export interface LevelMeta {
@@ -111,6 +119,8 @@ export interface ExportedLevel {
     npc_name?: string;
     whisper?: WhisperData;
     exit?: RoomExitData;
+    roomDoor?: RoomDoorData;
+    color?: string;
   }[];
 }
 

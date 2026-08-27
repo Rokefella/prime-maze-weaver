@@ -9,6 +9,7 @@ import {
   swatchFor,
   VILLAGE_EXTRA,
   abbrevCharacter,
+  roomDoorColor,
 } from "@/lib/maze/palette";
 
 export interface GridCanvasHandle {
@@ -353,6 +354,9 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           case "DROP":
             fill = PALETTE.drop;
             break;
+          case "ROOM_DOOR":
+            fill = roomDoorColor(cell.roomDoor?.color);
+            break;
         }
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
@@ -378,6 +382,19 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           ctx.beginPath();
           ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
           ctx.fill();
+        }
+        // Room door overlay: pulsing frame + door glyph
+        if (cell.type === "ROOM_DOOR") {
+          ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.4 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+          if (cellPx >= 12) {
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.font = `${Math.floor(cellPx * 0.45)}px ui-monospace, monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("D", x + w / 2, y + h / 2);
+          }
         }
         // Route path overlay
         if (routePath && routePath.has(i)) {
