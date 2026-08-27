@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
+import { supabase } from "@/integrations/supabase/client";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells } from "@/lib/maze/fragments";
@@ -545,7 +546,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey],
   );
 
   const runGenerate = () => {
