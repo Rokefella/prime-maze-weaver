@@ -63,6 +63,7 @@ export function exportLevel(
           row: r,
           type: cell.type,
           ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
+          ...(cell.npc?.npcKey ? { npc_key: cell.npc.npcKey } : {}),
           ...(cell.whisper ? { whisper: cell.whisper } : {}),
           ...(cell.exit ? { exit: cell.exit } : {}),
           ...(cell.roomDoor
@@ -206,7 +207,14 @@ export function importLevel(data: ExportedLevel): {
   for (const e of data.extraCells ?? [])
     setCell(e.col, e.row, {
       type: e.type,
-      ...(e.name || e.npc_name ? { npc: { name: (e.name ?? e.npc_name)! } } : {}),
+      ...(e.name || e.npc_name || e.npc_key
+        ? {
+            npc: {
+              name: (e.name ?? e.npc_name ?? e.npc_key)!,
+              ...(e.npc_key ? { npcKey: e.npc_key } : {}),
+            },
+          }
+        : {}),
       ...(e.whisper ? { whisper: e.whisper } : {}),
       ...(e.exit ? { exit: e.exit } : {}),
       ...(e.roomDoor || e.color
