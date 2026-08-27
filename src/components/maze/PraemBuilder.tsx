@@ -400,7 +400,18 @@ export function PraemBuilder() {
     if (npcRows.length > 0) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
+      // The npcs table lives outside the generated types, so query untyped.
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            order: (
+              c: string,
+              o: { ascending: boolean },
+            ) => Promise<{ data: unknown; error: { message: string } | null }>;
+          };
+        };
+      };
+      const { data, error } = await db
         .from("npcs")
         .select("id, npc_key, name")
         .order("npc_key", { ascending: true });
