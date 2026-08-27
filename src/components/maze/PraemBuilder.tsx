@@ -24,7 +24,14 @@ import type {
   SavedLevel,
   ExportedLevel,
 } from "@/lib/maze/types";
-import { CELL_LABELS, PALETTE, swatchFor, PRAEM_CHARACTERS } from "@/lib/maze/palette";
+import {
+  CELL_LABELS,
+  PALETTE,
+  swatchFor,
+  PRAEM_CHARACTERS,
+  ROOM_DOOR_COLORS,
+  roomDoorColor,
+} from "@/lib/maze/palette";
 
 const CHAR_SELECT_STYLE: React.CSSProperties = {
   background: "#0d0d1a",
@@ -49,6 +56,7 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "NPC", swatch: PALETTE.npc, label: CELL_LABELS.NPC },
   { type: "VEIL", swatch: PALETTE.veil, label: CELL_LABELS.VEIL },
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
+  { type: "ROOM_DOOR", swatch: ROOM_DOOR_COLORS[0].hex, label: CELL_LABELS.ROOM_DOOR },
 ];
 
 const VILLAGE_TYPES: CellType[] = [
@@ -299,6 +307,12 @@ export function PraemBuilder() {
   const [propName, setPropName] = useState(PRAEM_CHARACTERS[0] as string);
   const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
   const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
+  const [pendingRoomDoor, setPendingRoomDoor] = useState<{
+    col: number;
+    row: number;
+    color: string;
+  } | null>(null);
+  const [propDoorColor, setPropDoorColor] = useState<string>(ROOM_DOOR_COLORS[0].key);
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -388,6 +402,7 @@ export function PraemBuilder() {
           }
         }
         if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
+        if (tool === "ROOM_DOOR") base.roomDoor = { color: propDoorColor };
         return base;
       };
 
@@ -473,6 +488,11 @@ export function PraemBuilder() {
         return;
       }
 
+      if (tool === "ROOM_DOOR") {
+        setPendingRoomDoor({ col, row, color: propDoorColor });
+        return;
+      }
+
       // Unique-cell tools: clear previous occurrence
       setCells((prev) => {
         const next = prev.slice();
@@ -491,7 +511,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor],
   );
 
   const runGenerate = () => {
@@ -781,6 +801,24 @@ export function PraemBuilder() {
     setPendingExit(null);
   };
 
+  const confirmRoomDoor = () => {
+    if (!pendingRoomDoor) return;
+    const pd = pendingRoomDoor;
+    const color = pd.color.trim();
+    if (!color) {
+      setFlash({ msg: "Door colour required.", tone: "warn" });
+      return;
+    }
+    setCells((prev) => {
+      const next = prev.slice();
+      next[pd.row * size + pd.col] = { type: "ROOM_DOOR", roomDoor: { color } };
+      return next;
+    });
+    setPropDoorColor(color);
+    setManuallyEdited(true);
+    setPendingRoomDoor(null);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Left sidebar: Library */}
@@ -1029,6 +1067,55 @@ export function PraemBuilder() {
             </div>
           </div>
         )}
+        {/* Pending room door colour picker */}
+        {pendingRoomDoor && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              Room Door @ ({pendingRoomDoor.col},{pendingRoomDoor.row})
+            </div>
+            <div className="mb-1 text-xs text-muted-foreground">Colour</div>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {ROOM_DOOR_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setPendingRoomDoor({ ...pendingRoomDoor, color: c.key })}
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    pendingRoomDoor.color === c.key
+                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-sm"
+                    style={{ background: c.hex }}
+                  />
+                  {c.key}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={pendingRoomDoor.color}
+              onChange={(e) => setPendingRoomDoor({ ...pendingRoomDoor, color: e.target.value })}
+              placeholder="or type any colour / hex"
+              className="mb-3 w-full rounded border border-border bg-background px-2 py-1 text-xs"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={confirmRoomDoor}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+              >
+                Place Door
+              </button>
+              <button
+                onClick={() => setPendingRoomDoor(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Right sidebar */}
@@ -1176,6 +1263,42 @@ export function PraemBuilder() {
                   />
                 </label>
               )}
+            </div>
+          )}
+          {mode === "maze" && tool === "ROOM_DOOR" && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                Room Door colour
+              </div>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {ROOM_DOOR_COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setPropDoorColor(c.key)}
+                    className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                      propDoorColor === c.key
+                        ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                        : "border-border text-muted-foreground hover:bg-card/60"
+                    }`}
+                  >
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-sm"
+                      style={{ background: c.hex }}
+                    />
+                    {c.key}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={propDoorColor}
+                onChange={(e) => setPropDoorColor(e.target.value)}
+                className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+              />
+              <div
+                className="mt-2 h-3 w-full rounded"
+                style={{ background: roomDoorColor(propDoorColor) }}
+              />
             </div>
           )}
           {isVillageLike(mode) && tool === "ROOM_EXIT" && (
