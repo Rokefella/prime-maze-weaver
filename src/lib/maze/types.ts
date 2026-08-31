@@ -33,7 +33,8 @@ export type CellType =
   | "BANKER"
   | "LIGHT"
   | "RUG"
-  | "ROOM_DOOR";
+  | "ROOM_DOOR"
+  | "DROP_SPAWN";
 
 export type BuilderMode =
   | "maze"
@@ -69,6 +70,15 @@ export interface RoomDoorData {
   color: string;
 }
 
+/** A loot spawn point inside a maze. */
+export interface DropSpawnData {
+  /** Row id in the drop_types table (when selected from the live list). */
+  dropTypeId?: string;
+  dropKey: string;
+  /** Spawn chance percent, 0-100. */
+  chance: number;
+}
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
@@ -76,6 +86,7 @@ export interface CellState {
   whisper?: WhisperData;
   exit?: RoomExitData;
   roomDoor?: RoomDoorData;
+  dropSpawn?: DropSpawnData;
 }
 
 export interface LevelMeta {
@@ -124,6 +135,10 @@ export interface ExportedLevel {
     exit?: RoomExitData;
     roomDoor?: RoomDoorData;
     color?: string;
+    dropSpawn?: DropSpawnData;
+    drop_type_id?: string;
+    drop_key?: string;
+    chance?: number;
   }[];
 }
 

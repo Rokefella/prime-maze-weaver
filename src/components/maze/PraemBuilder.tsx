@@ -58,6 +58,7 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "VEIL", swatch: PALETTE.veil, label: CELL_LABELS.VEIL },
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
   { type: "ROOM_DOOR", swatch: ROOM_DOOR_COLORS[0].hex, label: CELL_LABELS.ROOM_DOOR },
+  { type: "DROP_SPAWN", swatch: PALETTE.dropSpawn, label: CELL_LABELS.DROP_SPAWN },
 ];
 
 const VILLAGE_TYPES: CellType[] = [
@@ -317,6 +318,10 @@ export function PraemBuilder() {
     color: string;
   } | null>(null);
   const [propDoorColor, setPropDoorColor] = useState<string>(ROOM_DOOR_COLORS[0].key);
+  const [dropTypeRows, setDropTypeRows] = useState<{ id: string; drop_key: string; name: string }[]>([]);
+  const [dropTypesError, setDropTypesError] = useState<string | null>(null);
+  const [propDropKey, setPropDropKey] = useState<string>("");
+  const [propDropChance, setPropDropChance] = useState<number>(10);
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -430,6 +435,42 @@ export function PraemBuilder() {
     };
   }, [tool, mode, npcRows.length]);
 
+  // Load the live drop types when the Drop Spawn tool is active in maze mode.
+  useEffect(() => {
+    if (tool !== "DROP_SPAWN" || mode !== "maze") return;
+    if (dropTypeRows.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      // The drop_types table lives outside the generated types, so query untyped.
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            order: (
+              c: string,
+              o: { ascending: boolean },
+            ) => Promise<{ data: unknown; error: { message: string } | null }>;
+          };
+        };
+      };
+      const { data, error } = await db
+        .from("drop_types")
+        .select("id, drop_key, name")
+        .order("drop_key", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setDropTypesError(error.message);
+        return;
+      }
+      const rows = (data ?? []) as { id: string; drop_key: string; name: string }[];
+      setDropTypesError(null);
+      setDropTypeRows(rows);
+      if (rows.length > 0) setPropDropKey((k) => k || rows[0].drop_key);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tool, mode, dropTypeRows.length]);
+
   const onCellClick = useCallback(
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
@@ -449,6 +490,14 @@ export function PraemBuilder() {
         }
         if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         if (tool === "ROOM_DOOR") base.roomDoor = { color: propDoorColor };
+        if (tool === "DROP_SPAWN") {
+          const row = dropTypeRows.find((r) => r.drop_key === propDropKey);
+          base.dropSpawn = {
+            dropKey: (row?.drop_key ?? propDropKey).trim(),
+            chance: Math.max(0, Math.min(100, propDropChance)),
+            ...(row ? { dropTypeId: row.id } : {}),
+          };
+        }
         return base;
       };
 
@@ -539,6 +588,11 @@ export function PraemBuilder() {
         return;
       }
 
+      if (tool === "DROP_SPAWN" && !propDropKey.trim()) {
+        setFlash({ msg: "Pick a drop type before placing a Drop Spawn.", tone: "warn" });
+        return;
+      }
+
       // Unique-cell tools: clear previous occurrence
       setCells((prev) => {
         const next = prev.slice();
@@ -557,7 +611,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance],
   );
 
   const runGenerate = () => {
@@ -1360,6 +1414,61 @@ export function PraemBuilder() {
                 className="mt-2 h-3 w-full rounded"
                 style={{ background: roomDoorColor(propDoorColor) }}
               />
+            </div>
+          )}
+          {mode === "maze" && tool === "DROP_SPAWN" && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                Drop Spawn
+              </div>
+              <label className="mb-2 block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Drop type
+                </span>
+                {dropTypeRows.length > 0 ? (
+                  <select
+                    value={propDropKey}
+                    onChange={(e) => setPropDropKey(e.target.value)}
+                    style={CHAR_SELECT_STYLE}
+                  >
+                    {dropTypeRows.map((r) => (
+                      <option key={r.id} value={r.drop_key} style={{ background: "#0d0d1a" }}>
+                        {r.name ? `${r.name} (${r.drop_key})` : r.drop_key}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={propDropKey}
+                      placeholder="drop_key"
+                      onChange={(e) => setPropDropKey(e.target.value)}
+                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                    />
+                    <span className="mt-1 block text-[10px] text-muted-foreground">
+                      {dropTypesError ? `Drop types unavailable: ${dropTypesError}` : "Loading drop types…"}
+                    </span>
+                  </>
+                )}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Chance % (0-100)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={propDropChance}
+                  onChange={(e) =>
+                    setPropDropChance(
+                      Math.max(0, Math.min(100, parseInt(e.target.value || "10", 10) || 0)),
+                    )
+                  }
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              </label>
             </div>
           )}
           {isVillageLike(mode) && tool === "ROOM_EXIT" && (

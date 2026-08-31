@@ -31,6 +31,7 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   LIGHT: true,
   RUG: true,
   ROOM_DOOR: true,
+  DROP_SPAWN: true,
 };
 
 export function exportLevel(
@@ -68,6 +69,16 @@ export function exportLevel(
           ...(cell.exit ? { exit: cell.exit } : {}),
           ...(cell.roomDoor
             ? { roomDoor: cell.roomDoor, color: cell.roomDoor.color }
+            : {}),
+          ...(cell.dropSpawn
+            ? {
+                dropSpawn: cell.dropSpawn,
+                drop_key: cell.dropSpawn.dropKey,
+                chance: cell.dropSpawn.chance,
+                ...(cell.dropSpawn.dropTypeId
+                  ? { drop_type_id: cell.dropSpawn.dropTypeId }
+                  : {}),
+              }
             : {}),
         });
         if (cell.type === "WHISPER") {
@@ -219,6 +230,15 @@ export function importLevel(data: ExportedLevel): {
       ...(e.exit ? { exit: e.exit } : {}),
       ...(e.roomDoor || e.color
         ? { roomDoor: e.roomDoor ?? { color: e.color! } }
+        : {}),
+      ...(e.dropSpawn || e.drop_key
+        ? {
+            dropSpawn: e.dropSpawn ?? {
+              dropKey: e.drop_key!,
+              chance: e.chance ?? 10,
+              ...(e.drop_type_id ? { dropTypeId: e.drop_type_id } : {}),
+            },
+          }
         : {}),
     });
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
