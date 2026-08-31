@@ -58,6 +58,7 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "VEIL", swatch: PALETTE.veil, label: CELL_LABELS.VEIL },
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
   { type: "ROOM_DOOR", swatch: ROOM_DOOR_COLORS[0].hex, label: CELL_LABELS.ROOM_DOOR },
+  { type: "DROP_SPAWN", swatch: PALETTE.dropSpawn, label: CELL_LABELS.DROP_SPAWN },
 ];
 
 const VILLAGE_TYPES: CellType[] = [
@@ -317,6 +318,10 @@ export function PraemBuilder() {
     color: string;
   } | null>(null);
   const [propDoorColor, setPropDoorColor] = useState<string>(ROOM_DOOR_COLORS[0].key);
+  const [dropTypeRows, setDropTypeRows] = useState<{ id: string; drop_key: string; name: string }[]>([]);
+  const [dropTypesError, setDropTypesError] = useState<string | null>(null);
+  const [propDropKey, setPropDropKey] = useState<string>("");
+  const [propDropChance, setPropDropChance] = useState<number>(10);
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
