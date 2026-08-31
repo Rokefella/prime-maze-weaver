@@ -588,6 +588,11 @@ export function PraemBuilder() {
         return;
       }
 
+      if (tool === "DROP_SPAWN" && !propDropKey.trim()) {
+        setFlash({ msg: "Pick a drop type before placing a Drop Spawn.", tone: "warn" });
+        return;
+      }
+
       // Unique-cell tools: clear previous occurrence
       setCells((prev) => {
         const next = prev.slice();
@@ -606,7 +611,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance],
   );
 
   const runGenerate = () => {
