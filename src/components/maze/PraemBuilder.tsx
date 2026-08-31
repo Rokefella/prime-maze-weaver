@@ -435,6 +435,42 @@ export function PraemBuilder() {
     };
   }, [tool, mode, npcRows.length]);
 
+  // Load the live drop types when the Drop Spawn tool is active in maze mode.
+  useEffect(() => {
+    if (tool !== "DROP_SPAWN" || mode !== "maze") return;
+    if (dropTypeRows.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      // The drop_types table lives outside the generated types, so query untyped.
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            order: (
+              c: string,
+              o: { ascending: boolean },
+            ) => Promise<{ data: unknown; error: { message: string } | null }>;
+          };
+        };
+      };
+      const { data, error } = await db
+        .from("drop_types")
+        .select("id, drop_key, name")
+        .order("drop_key", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setDropTypesError(error.message);
+        return;
+      }
+      const rows = (data ?? []) as { id: string; drop_key: string; name: string }[];
+      setDropTypesError(null);
+      setDropTypeRows(rows);
+      if (rows.length > 0) setPropDropKey((k) => k || rows[0].drop_key);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tool, mode, dropTypeRows.length]);
+
   const onCellClick = useCallback(
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
@@ -454,6 +490,14 @@ export function PraemBuilder() {
         }
         if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         if (tool === "ROOM_DOOR") base.roomDoor = { color: propDoorColor };
+        if (tool === "DROP_SPAWN") {
+          const row = dropTypeRows.find((r) => r.drop_key === propDropKey);
+          base.dropSpawn = {
+            dropKey: (row?.drop_key ?? propDropKey).trim(),
+            chance: Math.max(0, Math.min(100, propDropChance)),
+            ...(row ? { dropTypeId: row.id } : {}),
+          };
+        }
         return base;
       };
 
