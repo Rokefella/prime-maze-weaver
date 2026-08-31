@@ -16,6 +16,7 @@ export const PALETTE = {
   veil: "#251a3d",
   veilMarker: "rgba(184,123,255,0.35)",
   drop: "#22c55e",
+  dropSpawn: "#f97316",
   highlight: "#ffffff",
   hoverOutline: "rgba(255,255,255,0.6)",
 };
@@ -114,6 +115,7 @@ export const CELL_LABELS: Record<string, string> = {
   LIGHT: "Light",
   RUG: "Rug",
   ROOM_DOOR: "Room Door",
+  DROP_SPAWN: "Drop Spawn",
 };
 
 export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm"): string {
