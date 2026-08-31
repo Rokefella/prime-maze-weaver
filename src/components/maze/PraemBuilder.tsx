@@ -1416,6 +1416,61 @@ export function PraemBuilder() {
               />
             </div>
           )}
+          {mode === "maze" && tool === "DROP_SPAWN" && (
+            <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+              <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                Drop Spawn
+              </div>
+              <label className="mb-2 block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Drop type
+                </span>
+                {dropTypeRows.length > 0 ? (
+                  <select
+                    value={propDropKey}
+                    onChange={(e) => setPropDropKey(e.target.value)}
+                    style={CHAR_SELECT_STYLE}
+                  >
+                    {dropTypeRows.map((r) => (
+                      <option key={r.id} value={r.drop_key} style={{ background: "#0d0d1a" }}>
+                        {r.name ? `${r.name} (${r.drop_key})` : r.drop_key}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={propDropKey}
+                      placeholder="drop_key"
+                      onChange={(e) => setPropDropKey(e.target.value)}
+                      className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                    />
+                    <span className="mt-1 block text-[10px] text-muted-foreground">
+                      {dropTypesError ? `Drop types unavailable: ${dropTypesError}` : "Loading drop types…"}
+                    </span>
+                  </>
+                )}
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Chance % (0-100)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={propDropChance}
+                  onChange={(e) =>
+                    setPropDropChance(
+                      Math.max(0, Math.min(100, parseInt(e.target.value || "10", 10) || 0)),
+                    )
+                  }
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              </label>
+            </div>
+          )}
           {isVillageLike(mode) && tool === "ROOM_EXIT" && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
