@@ -357,6 +357,9 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           case "ROOM_DOOR":
             fill = roomDoorColor(cell.roomDoor?.color);
             break;
+          case "DROP_SPAWN":
+            fill = PALETTE.dropSpawn;
+            break;
         }
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
@@ -394,6 +397,19 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText("D", x + w / 2, y + h / 2);
+          }
+        }
+        // Drop spawn overlay: pulsing frame + chance label
+        if (cell.type === "DROP_SPAWN") {
+          ctx.strokeStyle = `rgba(255,255,255,${0.35 + 0.4 * pulse})`;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+          if (cellPx >= 12) {
+            ctx.fillStyle = "rgba(0,0,0,0.65)";
+            ctx.font = `${Math.floor(cellPx * 0.38)}px ui-monospace, monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`${cell.dropSpawn?.chance ?? 10}%`, x + w / 2, y + h / 2);
           }
         }
         // Route path overlay
