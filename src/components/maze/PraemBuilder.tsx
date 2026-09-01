@@ -110,7 +110,9 @@ export const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb
 ];
 
 function isRoomMode(mode: BuilderMode) {
-  return ROOM_MODES.some((r) => r.key === mode);
+  // Any non-core mode is treated as a room interior. The specific key is
+  // the location_key used on publish; known presets still work as before.
+  return mode !== "maze" && mode !== "village" && mode !== "shadow_realm";
 }
 
 /** Trimmed interior palette for Room modes. */
@@ -1777,17 +1779,15 @@ export function PraemBuilder() {
           </Field>
           {isRoomMode(mode) && (
             <Field label="Room">
-              <select
+              <input
+                type="text"
                 value={mode}
-                onChange={(e) => setMeta((m) => ({ ...m, mode: e.target.value as BuilderMode }))}
+                onChange={(e) =>
+                  setMeta((m) => ({ ...m, mode: e.target.value as BuilderMode }))
+                }
+                placeholder="library, exchange, bernard_room, or any key"
                 className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-              >
-                {ROOM_MODES.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+              />
             </Field>
           )}
           <Field label="Required Fragments">
