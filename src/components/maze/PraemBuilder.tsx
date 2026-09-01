@@ -324,6 +324,8 @@ export function PraemBuilder() {
   const [dropTypesError, setDropTypesError] = useState<string | null>(null);
   const [propDropKey, setPropDropKey] = useState<string>("");
   const [propDropChance, setPropDropChance] = useState<number>(10);
+  const [roomDoorColors, setRoomDoorColors] = useState<string[]>([]);
+
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
