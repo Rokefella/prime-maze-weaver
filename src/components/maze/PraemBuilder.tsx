@@ -110,7 +110,9 @@ export const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb
 ];
 
 function isRoomMode(mode: BuilderMode) {
-  return ROOM_MODES.some((r) => r.key === mode);
+  // Any non-core mode is treated as a room interior. The specific key is
+  // the location_key used on publish; known presets still work as before.
+  return mode !== "maze" && mode !== "village" && mode !== "shadow_realm";
 }
 
 /** Trimmed interior palette for Room modes. */
