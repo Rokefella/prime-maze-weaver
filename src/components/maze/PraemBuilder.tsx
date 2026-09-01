@@ -1842,8 +1842,41 @@ export function PraemBuilder() {
                 placeholder="library, exchange, bernard_room, or any key"
                 className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
               />
+              <div className="mt-2">
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Doors found in this maze
+                </div>
+                {roomDoorColors.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    No room doors placed in this maze yet.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {roomDoorColors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() =>
+                          setMeta((m) => ({ ...m, mode: color as BuilderMode }))
+                        }
+                        className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                          mode === color
+                            ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                            : "border-border text-muted-foreground hover:bg-card/60"
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ background: roomDoorColor(color) }}
+                        />
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
           )}
+
           <Field label="Required Fragments">
             <input
               type="number"
