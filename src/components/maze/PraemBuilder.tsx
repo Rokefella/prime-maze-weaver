@@ -324,6 +324,8 @@ export function PraemBuilder() {
   const [dropTypesError, setDropTypesError] = useState<string | null>(null);
   const [propDropKey, setPropDropKey] = useState<string>("");
   const [propDropChance, setPropDropChance] = useState<number>(10);
+  const [roomDoorColors, setRoomDoorColors] = useState<string[]>([]);
+
 
   const [vDensity, setVDensity] = useState(5);
   const [vMix, setVMix] = useState(5);
@@ -472,6 +474,58 @@ export function PraemBuilder() {
       cancelled = true;
     };
   }, [tool, mode, dropTypeRows.length]);
+
+  // When editing a room interior, suggest colors from ROOM_DOOR cells already
+  // placed in the published maze with the same level number.
+  useEffect(() => {
+    if (!isRoomMode(mode)) {
+      setRoomDoorColors([]);
+      return;
+    }
+    const levelNumber = meta.levelNumber;
+    if (!levelNumber || Number.isNaN(levelNumber) || levelNumber < 1) {
+      setRoomDoorColors([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (
+              c: string,
+              v: number,
+            ) => {
+              maybeSingle: () => Promise<{
+                data: unknown;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+      const { data, error } = await db
+        .from("mazes")
+        .select("data")
+        .eq("level_number", levelNumber)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setRoomDoorColors([]);
+        return;
+      }
+      const extraCells = ((data as { data?: { extraCells?: unknown[] } }).data?.extraCells) ?? [];
+      const colors = new Set<string>();
+      for (const cell of extraCells) {
+        const c = cell as { type?: string; color?: string };
+        if (c.type === "ROOM_DOOR" && c.color) colors.add(c.color);
+      }
+      setRoomDoorColors(Array.from(colors));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meta.levelNumber, mode]);
 
   const onCellClick = useCallback(
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
@@ -1788,8 +1842,41 @@ export function PraemBuilder() {
                 placeholder="library, exchange, bernard_room, or any key"
                 className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
               />
+              <div className="mt-2">
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Doors found in this maze
+                </div>
+                {roomDoorColors.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">
+                    No room doors placed in this maze yet.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {roomDoorColors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() =>
+                          setMeta((m) => ({ ...m, mode: color as BuilderMode }))
+                        }
+                        className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                          mode === color
+                            ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                            : "border-border text-muted-foreground hover:bg-card/60"
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ background: roomDoorColor(color) }}
+                        />
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
           )}
+
           <Field label="Required Fragments">
             <input
               type="number"
