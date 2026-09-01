@@ -475,6 +475,58 @@ export function PraemBuilder() {
     };
   }, [tool, mode, dropTypeRows.length]);
 
+  // When editing a room interior, suggest colors from ROOM_DOOR cells already
+  // placed in the published maze with the same level number.
+  useEffect(() => {
+    if (!isRoomMode(mode)) {
+      setRoomDoorColors([]);
+      return;
+    }
+    const levelNumber = meta.levelNumber;
+    if (!levelNumber || Number.isNaN(levelNumber) || levelNumber < 1) {
+      setRoomDoorColors([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const db = supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (
+              c: string,
+              v: number,
+            ) => {
+              maybeSingle: () => Promise<{
+                data: unknown;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+      const { data, error } = await db
+        .from("mazes")
+        .select("data")
+        .eq("level_number", levelNumber)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setRoomDoorColors([]);
+        return;
+      }
+      const extraCells = ((data as { data?: { extraCells?: unknown[] } }).data?.extraCells) ?? [];
+      const colors = new Set<string>();
+      for (const cell of extraCells) {
+        const c = cell as { type?: string; color?: string };
+        if (c.type === "ROOM_DOOR" && c.color) colors.add(c.color);
+      }
+      setRoomDoorColors(Array.from(colors));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meta.levelNumber, mode]);
+
   const onCellClick = useCallback(
     (col: number, row: number, e: { button: number; shiftKey: boolean }) => {
       const idx = row * size + col;
