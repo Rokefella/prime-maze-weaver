@@ -680,6 +680,29 @@ export function PraemBuilder() {
     setFlash({ msg: "Layout generated.", tone: "info" });
   };
 
+  const scatterDrops = (count = 20) => {
+    setCells((prev) => {
+      const candidates: number[] = [];
+      for (let i = 0; i < prev.length; i++) {
+        if (prev[i].type === "CORRIDOR") candidates.push(i);
+      }
+      if (candidates.length === 0) {
+        setFlash({ msg: "No open corridors to scatter drops on.", tone: "warn" });
+        return prev;
+      }
+      for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+      }
+      const picked = candidates.slice(0, Math.min(count, candidates.length));
+      const next = prev.slice();
+      for (const idx of picked) next[idx] = { type: "DROP" };
+      setFlash({ msg: `Scattered ${picked.length} drop points.`, tone: "info" });
+      return next;
+    });
+    setManuallyEdited(true);
+  };
+
   const applyPreset = (k: "simple" | "medium" | "complex") => {
     const p = PRESETS[k];
     setDeadEnds(p.deadEnds);
@@ -1599,6 +1622,18 @@ export function PraemBuilder() {
             className="mt-2 w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
           >
             Suggest Fragments
+          </button>
+        </Section>
+
+        <Section title="Drops">
+          <p className="mb-2 text-[10px] text-muted-foreground">
+            Places 20 DROP tiles at random on open corridor cells. Never overwrites starts, doors, fragments, or existing special cells.
+          </p>
+          <button
+            onClick={() => scatterDrops(20)}
+            className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+          >
+            Scatter 20 Drop Points
           </button>
         </Section>
 
