@@ -2043,6 +2043,45 @@ export function PraemBuilder() {
             </Field>
           )}
 
+          {isRoomMode(mode) && (
+            <Field label="Season">
+              <select
+                value={
+                  meta.season && SEASON_PRESETS.includes(meta.season)
+                    ? meta.season
+                    : meta.season !== undefined
+                      ? "custom"
+                      : ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMeta((m) => ({
+                    ...m,
+                    season: v === "" ? undefined : v === "custom" ? "" : v,
+                  }));
+                }}
+                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+              >
+                <option value="">—</option>
+                {SEASON_PRESETS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+                <option value="custom">Other…</option>
+              </select>
+              {meta.season !== undefined && !SEASON_PRESETS.includes(meta.season) && (
+                <input
+                  type="text"
+                  value={meta.season}
+                  onChange={(e) => setMeta((m) => ({ ...m, season: e.target.value }))}
+                  placeholder="e.g. christmas"
+                  className="mt-2 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              )}
+            </Field>
+          )}
+
           <Field label="Required Fragments">
             <input
               type="number"
