@@ -100,6 +100,8 @@ export interface LevelMeta {
   requiredFragments: number;
   notes: string;
   mode: BuilderMode;
+  /** Season label for room interiors (e.g. "spring", "christmas"). */
+  season?: string;
 }
 
 export interface ExportedLevel {
@@ -108,6 +110,8 @@ export interface ExportedLevel {
   levelNumber: number;
   levelName: string;
   gridSize: number;
+  /** Top-level season label for room interiors (same level as gridSize). */
+  season?: string;
   requiredFragments: number;
   notes: string;
   start: { col: number; row: number } | null;

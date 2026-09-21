@@ -167,6 +167,7 @@ export function exportLevel(
     levelNumber: meta.levelNumber,
     levelName: meta.levelName,
     gridSize: size,
+    ...(meta.season && meta.season.trim() ? { season: meta.season } : {}),
     requiredFragments: meta.requiredFragments,
     notes: meta.notes,
     start,
@@ -261,6 +262,7 @@ export function importLevel(data: ExportedLevel): {
       levelName: data.levelName,
       requiredFragments: data.requiredFragments,
       notes: data.notes,
+      ...(data.season ? { season: data.season } : {}),
     },
   };
 }
