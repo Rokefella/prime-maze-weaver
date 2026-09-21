@@ -122,6 +122,9 @@ const ROOM_TYPES: CellType[] = [
   "BOOKCASE",
   "LIGHT",
   "RUG",
+  "FLOWER",
+  "TREE",
+  "GARDEN_DECOR",
   "ROOM_EXIT",
   "NPC",
   "BERNARD",
@@ -320,6 +323,13 @@ export function PraemBuilder() {
     color: string;
   } | null>(null);
   const [propDoorColor, setPropDoorColor] = useState<string>(ROOM_DOOR_COLORS[0].key);
+  const [propDecorColor, setPropDecorColor] = useState<string>("#e6b85c");
+  const [pendingColoredTile, setPendingColoredTile] = useState<{
+    col: number;
+    row: number;
+    type: "FLOWER" | "TREE" | "GARDEN_DECOR" | "LIGHT";
+    color: string;
+  } | null>(null);
   const [dropTypeRows, setDropTypeRows] = useState<{ id: string; drop_key: string; name: string }[]>([]);
   const [dropTypesError, setDropTypesError] = useState<string | null>(null);
   const [propDropKey, setPropDropKey] = useState<string>("");
@@ -546,6 +556,14 @@ export function PraemBuilder() {
         }
         if (tool === "ROOM_EXIT") base.exit = { destination: propExitDest };
         if (tool === "ROOM_DOOR") base.roomDoor = { color: propDoorColor };
+        if (
+          tool === "FLOWER" ||
+          tool === "TREE" ||
+          tool === "GARDEN_DECOR" ||
+          tool === "LIGHT"
+        ) {
+          base.color = propDecorColor.trim() || (tool === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key);
+        }
         if (tool === "DROP_SPAWN") {
           const row = dropTypeRows.find((r) => r.drop_key === propDropKey);
           base.dropSpawn = {
@@ -644,6 +662,21 @@ export function PraemBuilder() {
         return;
       }
 
+      if (
+        tool === "FLOWER" ||
+        tool === "TREE" ||
+        tool === "GARDEN_DECOR" ||
+        tool === "LIGHT"
+      ) {
+        setPendingColoredTile({
+          col,
+          row,
+          type: tool,
+          color: propDecorColor.trim() || (tool === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key),
+        });
+        return;
+      }
+
       if (tool === "DROP_SPAWN" && !propDropKey.trim()) {
         setFlash({ msg: "Pick a drop type before placing a Drop Spawn.", tone: "warn" });
         return;
@@ -667,7 +700,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance],
   );
 
   const runGenerate = () => {
@@ -998,6 +1031,20 @@ export function PraemBuilder() {
     setPendingRoomDoor(null);
   };
 
+  const confirmColoredTile = () => {
+    if (!pendingColoredTile) return;
+    const pending = pendingColoredTile;
+    const color = pending.color.trim() || (pending.type === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key);
+    setCells((prev) => {
+      const next = prev.slice();
+      next[pending.row * size + pending.col] = { type: pending.type, color };
+      return next;
+    });
+    setPropDecorColor(color);
+    setManuallyEdited(true);
+    setPendingColoredTile(null);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
       {/* Left sidebar: Library */}
@@ -1295,6 +1342,52 @@ export function PraemBuilder() {
             </div>
           </div>
         )}
+        {/* Recolourable room decoration / light picker */}
+        {pendingColoredTile && (
+          <div className="absolute left-1/2 top-1/4 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              {CELL_LABELS[pendingColoredTile.type]} @ ({pendingColoredTile.col},{pendingColoredTile.row})
+            </div>
+            <div className="mb-1 text-xs text-muted-foreground">Colour</div>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {ROOM_DOOR_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setPendingColoredTile({ ...pendingColoredTile, color: c.key })}
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    pendingColoredTile.color === c.key
+                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: c.hex }} />
+                  {c.key}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={pendingColoredTile.color}
+              onChange={(e) => setPendingColoredTile({ ...pendingColoredTile, color: e.target.value })}
+              placeholder="or type any colour / hex"
+              className="mb-3 w-full rounded border border-border bg-background px-2 py-1 text-xs"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={confirmColoredTile}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90"
+              >
+                Place {CELL_LABELS[pendingColoredTile.type]}
+              </button>
+              <button
+                onClick={() => setPendingColoredTile(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Right sidebar */}
@@ -1550,6 +1643,44 @@ export function PraemBuilder() {
               </label>
             </div>
           )}
+          {isVillageLike(mode) &&
+            (tool === "FLOWER" ||
+              tool === "TREE" ||
+              tool === "GARDEN_DECOR" ||
+              tool === "LIGHT") && (
+              <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
+                <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
+                  {CELL_LABELS[tool]} colour
+                </div>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {ROOM_DOOR_COLORS.map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => setPropDecorColor(c.key)}
+                      className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                        propDecorColor === c.key
+                          ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                          : "border-border text-muted-foreground hover:bg-card/60"
+                      }`}
+                    >
+                      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: c.hex }} />
+                      {c.key}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={propDecorColor}
+                  onChange={(e) => setPropDecorColor(e.target.value)}
+                  placeholder={tool === "LIGHT" ? "#e6b85c" : "or type any colour / hex"}
+                  className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                />
+                <div
+                  className="mt-2 h-3 w-full rounded"
+                  style={{ background: roomDoorColor(propDecorColor || (tool === "LIGHT" ? "#e6b85c" : undefined)) }}
+                />
+              </div>
+            )}
           {isVillageLike(mode) && tool === "ROOM_EXIT" && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">

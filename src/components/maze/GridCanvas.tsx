@@ -232,7 +232,14 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             }
             continue;
           }
-          fill = swatchFor(cell.type, mode);
+          const recolourable =
+            cell.type === "FLOWER" ||
+            cell.type === "TREE" ||
+            cell.type === "GARDEN_DECOR" ||
+            cell.type === "LIGHT";
+          fill = recolourable
+            ? roomDoorColor(cell.color || (cell.type === "LIGHT" ? "#e6b85c" : undefined))
+            : swatchFor(cell.type, mode);
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, w, h);
 
@@ -264,6 +271,35 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.beginPath();
             ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
             ctx.fill();
+          }
+          if (cell.type === "TREE" && cellPx >= 5) {
+            ctx.fillStyle = "rgba(255,255,255,0.38)";
+            const r2 = Math.max(1, cellPx * 0.19);
+            ctx.beginPath();
+            ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (cell.type === "FLOWER" && cellPx >= 7) {
+            ctx.fillStyle = "rgba(255,255,255,0.62)";
+            const r2 = Math.max(1, cellPx * 0.1);
+            for (let petal = 0; petal < 4; petal++) {
+              const angle = petal * Math.PI / 2;
+              ctx.beginPath();
+              ctx.arc(x + w / 2 + Math.cos(angle) * r2 * 1.5, y + h / 2 + Math.sin(angle) * r2 * 1.5, r2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          if (cell.type === "GARDEN_DECOR" && cellPx >= 7) {
+            ctx.strokeStyle = "rgba(255,255,255,0.58)";
+            ctx.lineWidth = 1;
+            const d = Math.max(2, cellPx * 0.22);
+            ctx.beginPath();
+            ctx.moveTo(x + w / 2, y + h / 2 - d);
+            ctx.lineTo(x + w / 2 + d, y + h / 2);
+            ctx.lineTo(x + w / 2, y + h / 2 + d);
+            ctx.lineTo(x + w / 2 - d, y + h / 2);
+            ctx.closePath();
+            ctx.stroke();
           }
           if (cell.type === "GHOST_ZONE" && cellPx >= 4) {
             ctx.fillStyle = SHADOW_PALETTE.ghostMarker;

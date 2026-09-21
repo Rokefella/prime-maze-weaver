@@ -114,6 +114,9 @@ export const CELL_LABELS: Record<string, string> = {
   BANKER: "Banker",
   LIGHT: "Light",
   RUG: "Rug",
+  FLOWER: "Flower",
+  TREE: "Tree",
+  GARDEN_DECOR: "Garden Decor",
   ROOM_DOOR: "Room Door",
   DROP_SPAWN: "Drop Spawn",
 };
@@ -136,6 +139,9 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
       case "BANKER": return "#5b8aa0"; // steel-blue
       case "LIGHT": return "#e6b85c";
       case "RUG": return "#7d2e3e";
+      case "FLOWER": return "#ef4444";
+      case "TREE": return "#22c55e";
+      case "GARDEN_DECOR": return "#a855f7";
       case "WALL": return PALETTE.wall;
       case "BUILDING_S": return VILLAGE_PALETTE.buildingS;
       case "BUILDING_M": return VILLAGE_PALETTE.buildingM;

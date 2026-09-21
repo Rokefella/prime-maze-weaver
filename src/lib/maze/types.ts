@@ -33,6 +33,9 @@ export type CellType =
   | "BANKER"
   | "LIGHT"
   | "RUG"
+  | "FLOWER"
+  | "TREE"
+  | "GARDEN_DECOR"
   | "ROOM_DOOR"
   | "DROP_SPAWN";
 
@@ -86,6 +89,8 @@ export interface CellState {
   whisper?: WhisperData;
   exit?: RoomExitData;
   roomDoor?: RoomDoorData;
+  /** Recolourable room decoration or light. */
+  color?: string;
   dropSpawn?: DropSpawnData;
 }
 
