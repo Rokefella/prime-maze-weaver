@@ -280,9 +280,44 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
             ctx.fill();
           }
+          if (cell.type === "GROUND" && cellPx >= 4) {
+            // Subtle grass-blade / dot texture so ground reads as a real floor.
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x, y, w, h);
+            ctx.clip();
+            const step = Math.max(3, cellPx / 3);
+            let seed = (canon.col * 73856093) ^ (canon.row * 19349663);
+            const rnd = () => {
+              seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+              return (seed % 1000) / 1000;
+            };
+            for (let gy = 0; gy < h; gy += step) {
+              for (let gx = 0; gx < w; gx += step) {
+                const px = x + gx + rnd() * step * 0.8;
+                const py = y + gy + rnd() * step * 0.8;
+                const blade = Math.max(1, cellPx * 0.14);
+                ctx.strokeStyle =
+                  rnd() > 0.5 ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.18)";
+                ctx.lineWidth = Math.max(0.6, cellPx * 0.05);
+                ctx.beginPath();
+                ctx.moveTo(px, py + blade);
+                ctx.lineTo(px + (rnd() - 0.5) * blade, py);
+                ctx.stroke();
+              }
+            }
+            ctx.restore();
+          }
           if (cell.type === "TREE" && cellPx >= 5) {
-            ctx.fillStyle = "rgba(255,255,255,0.38)";
-            const r2 = Math.max(1, cellPx * 0.19);
+            // Denser canopy where trees touch: neighbours boost size + opacity.
+            let neigh = 0;
+            if (canon.col > 0 && cells[i - 1]?.type === "TREE") neigh++;
+            if (canon.col < size - 1 && cells[i + 1]?.type === "TREE") neigh++;
+            if (canon.row > 0 && cells[i - size]?.type === "TREE") neigh++;
+            if (canon.row < size - 1 && cells[i + size]?.type === "TREE") neigh++;
+            const d = neigh / 4;
+            ctx.fillStyle = `rgba(255,255,255,${(0.38 + 0.22 * d).toFixed(3)})`;
+            const r2 = Math.max(1, cellPx * (0.19 + 0.16 * d));
             ctx.beginPath();
             ctx.arc(x + w / 2, y + h / 2, r2, 0, Math.PI * 2);
             ctx.fill();
