@@ -30,6 +30,9 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   BANKER: true,
   LIGHT: true,
   RUG: true,
+  FLOWER: true,
+  TREE: true,
+  GARDEN_DECOR: true,
   ROOM_DOOR: true,
   DROP_SPAWN: true,
 };
@@ -70,6 +73,7 @@ export function exportLevel(
           ...(cell.roomDoor
             ? { roomDoor: cell.roomDoor, color: cell.roomDoor.color }
             : {}),
+          ...(!cell.roomDoor && cell.color ? { color: cell.color } : {}),
           ...(cell.dropSpawn
             ? {
                 dropSpawn: cell.dropSpawn,
@@ -229,7 +233,9 @@ export function importLevel(data: ExportedLevel): {
       ...(e.whisper ? { whisper: e.whisper } : {}),
       ...(e.exit ? { exit: e.exit } : {}),
       ...(e.roomDoor || e.color
-        ? { roomDoor: e.roomDoor ?? { color: e.color! } }
+        ? e.type === "ROOM_DOOR"
+          ? { roomDoor: e.roomDoor ?? { color: e.color ?? "blue" } }
+          : { color: e.color }
         : {}),
       ...(e.dropSpawn || e.drop_key
         ? {
