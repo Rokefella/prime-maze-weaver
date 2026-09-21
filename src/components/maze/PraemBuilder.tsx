@@ -2055,7 +2055,7 @@ export function PraemBuilder() {
             <Field label="Season">
               <select
                 value={
-                  meta.season && SEASON_PRESETS.includes(meta.season)
+                  meta.season && SEASON_PRESETS.some((p) => p.key === meta.season)
                     ? meta.season
                     : meta.season !== undefined
                       ? "custom"
@@ -2078,7 +2078,7 @@ export function PraemBuilder() {
                 ))}
                 <option value="custom">Other…</option>
               </select>
-              {meta.season !== undefined && !SEASON_PRESETS.includes(meta.season) && (
+              {meta.season !== undefined && !SEASON_PRESETS.some((p) => p.key === meta.season) && (
                 <input
                   type="text"
                   value={meta.season}
