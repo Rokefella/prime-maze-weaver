@@ -773,7 +773,6 @@ export function PraemBuilder() {
   };
 
   const scatterFlowers = () => {
-    let placed = 0;
     setCells((prev) => {
       const next = prev.slice();
       for (let i = 0; i < next.length; i++) {
@@ -781,13 +780,11 @@ export function PraemBuilder() {
         if (Math.random() >= FLOWER_CHANCE) continue;
         const pick = ROOM_DOOR_COLORS[Math.floor(Math.random() * ROOM_DOOR_COLORS.length)];
         next[i] = { type: "FLOWER", color: pick.hex };
-        placed++;
       }
       return next;
     });
     setManuallyEdited(true);
     setFlash({ msg: "Flowers scattered across the ground.", tone: "info" });
-    void placed;
   };
 
   const applyPreset = (k: "simple" | "medium" | "complex") => {
