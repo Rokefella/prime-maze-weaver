@@ -1662,6 +1662,7 @@ export function PraemBuilder() {
             (tool === "FLOWER" ||
               tool === "TREE" ||
               tool === "GARDEN_DECOR" ||
+              tool === "GROUND" ||
               tool === "LIGHT") && (
               <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
                 <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
