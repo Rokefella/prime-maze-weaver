@@ -678,13 +678,16 @@ export function PraemBuilder() {
         tool === "FLOWER" ||
         tool === "TREE" ||
         tool === "GARDEN_DECOR" ||
+        tool === "GROUND" ||
         tool === "LIGHT"
       ) {
         setPendingColoredTile({
           col,
           row,
           type: tool,
-          color: propDecorColor.trim() || (tool === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key),
+          color:
+            propDecorColor.trim() ||
+            (tool === "LIGHT" ? "#e6b85c" : tool === "GROUND" ? "#4a7c3f" : ROOM_DOOR_COLORS[0].key),
         });
         return;
       }
