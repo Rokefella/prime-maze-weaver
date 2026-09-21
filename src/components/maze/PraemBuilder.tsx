@@ -126,6 +126,7 @@ function isRoomMode(mode: BuilderMode) {
 /** Trimmed interior palette for Room modes. */
 const ROOM_TYPES: CellType[] = [
   "WALL",
+  "GROUND",
   "FURNITURE",
   "BOOKCASE",
   "LIGHT",
