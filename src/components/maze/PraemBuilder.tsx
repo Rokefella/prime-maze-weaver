@@ -109,6 +109,14 @@ export const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb
   { key: "bernard_room", label: "Bernard Room", color: "#c98a1f", blurb: "Bernard's room interior." },
 ];
 
+/** Season presets for room interiors (Rooms mode only). */
+const SEASON_PRESETS: { key: string; label: string; color: string }[] = [
+  { key: "spring", label: "Spring", color: "#5bd75b" },
+  { key: "summer", label: "Summer", color: "#f2e34c" },
+  { key: "autumn", label: "Autumn", color: "#d99a2b" },
+  { key: "winter", label: "Winter", color: "#f5f5f5" },
+];
+
 function isRoomMode(mode: BuilderMode) {
   // Any non-core mode is treated as a room interior. The specific key is
   // the location_key used on publish; known presets still work as before.
@@ -2040,6 +2048,45 @@ export function PraemBuilder() {
                   </div>
                 )}
               </div>
+            </Field>
+          )}
+
+          {isRoomMode(mode) && (
+            <Field label="Season">
+              <select
+                value={
+                  meta.season && SEASON_PRESETS.some((p) => p.key === meta.season)
+                    ? meta.season
+                    : meta.season !== undefined
+                      ? "custom"
+                      : ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMeta((m) => ({
+                    ...m,
+                    season: v === "" ? undefined : v === "custom" ? "" : v,
+                  }));
+                }}
+                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+              >
+                <option value="">—</option>
+                {SEASON_PRESETS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+                <option value="custom">Other…</option>
+              </select>
+              {meta.season !== undefined && !SEASON_PRESETS.some((p) => p.key === meta.season) && (
+                <input
+                  type="text"
+                  value={meta.season}
+                  onChange={(e) => setMeta((m) => ({ ...m, season: e.target.value }))}
+                  placeholder="e.g. christmas"
+                  className="mt-2 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                />
+              )}
             </Field>
           )}
 
