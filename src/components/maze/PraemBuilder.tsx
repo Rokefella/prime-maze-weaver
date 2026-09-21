@@ -751,6 +751,42 @@ export function PraemBuilder() {
     setManuallyEdited(true);
   };
 
+  const GARDEN_GRASS = "#4a7c3f";
+  const GARDEN_GRASS_PRIME = "#40693a"; // subtle darker shade of the same green
+  const GARDEN_TREE = "#22c55e";
+  const FLOWER_CHANCE = 0.08;
+
+  const generateGardenBase = () => {
+    const next = cells.slice();
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        const idx = r * size + c;
+        const inBorder = r < 2 || c < 2 || r >= size - 2 || c >= size - 2;
+        next[idx] = inBorder
+          ? { type: "TREE", color: GARDEN_TREE }
+          : { type: "GROUND", color: ulam.isPrime[idx] ? GARDEN_GRASS_PRIME : GARDEN_GRASS };
+      }
+    }
+    setCells(next);
+    setManuallyEdited(true);
+    setFlash({ msg: "Garden base generated.", tone: "info" });
+  };
+
+  const scatterFlowers = () => {
+    setCells((prev) => {
+      const next = prev.slice();
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].type !== "GROUND") continue;
+        if (Math.random() >= FLOWER_CHANCE) continue;
+        const pick = ROOM_DOOR_COLORS[Math.floor(Math.random() * ROOM_DOOR_COLORS.length)];
+        next[i] = { type: "FLOWER", color: pick.hex };
+      }
+      return next;
+    });
+    setManuallyEdited(true);
+    setFlash({ msg: "Flowers scattered across the ground.", tone: "info" });
+  };
+
   const applyPreset = (k: "simple" | "medium" | "complex") => {
     const p = PRESETS[k];
     setDeadEnds(p.deadEnds);
@@ -1991,6 +2027,31 @@ export function PraemBuilder() {
             <p className="mt-2" style={{ color: "rgba(200,100,100,0.4)", fontSize: 11 }}>
               Manually placed NPCs and transfer point are preserved.
             </p>
+          </Section>
+        )}
+
+        {isRoomMode(mode) && (
+          <Section title="Garden">
+            <p className="mb-2 text-[10px] text-muted-foreground">
+              One-click base: grass floor everywhere (primes get a subtly darker green), plus a
+              two-cell tree border. Overwrites the room — run on a mostly-empty layout.
+            </p>
+            <button
+              onClick={generateGardenBase}
+              className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+            >
+              Generate Garden Base
+            </button>
+            <p className="mb-2 mt-3 text-[10px] text-muted-foreground">
+              Rolls a small chance on every ground tile to grow a flower in a random colour. Adds
+              to existing flowers — clicking again scatters more.
+            </p>
+            <button
+              onClick={scatterFlowers}
+              className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+            >
+              Scatter Flowers
+            </button>
           </Section>
         )}
 
