@@ -751,6 +751,45 @@ export function PraemBuilder() {
     setManuallyEdited(true);
   };
 
+  const GARDEN_GRASS = "#4a7c3f";
+  const GARDEN_GRASS_PRIME = "#40693a"; // subtle darker shade of the same green
+  const GARDEN_TREE = "#22c55e";
+  const FLOWER_CHANCE = 0.08;
+
+  const generateGardenBase = () => {
+    const next = cells.slice();
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        const idx = r * size + c;
+        const inBorder = r < 2 || c < 2 || r >= size - 2 || c >= size - 2;
+        next[idx] = inBorder
+          ? { type: "TREE", color: GARDEN_TREE }
+          : { type: "GROUND", color: ulam.isPrime[idx] ? GARDEN_GRASS_PRIME : GARDEN_GRASS };
+      }
+    }
+    setCells(next);
+    setManuallyEdited(true);
+    setFlash({ msg: "Garden base generated.", tone: "info" });
+  };
+
+  const scatterFlowers = () => {
+    let placed = 0;
+    setCells((prev) => {
+      const next = prev.slice();
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].type !== "GROUND") continue;
+        if (Math.random() >= FLOWER_CHANCE) continue;
+        const pick = ROOM_DOOR_COLORS[Math.floor(Math.random() * ROOM_DOOR_COLORS.length)];
+        next[i] = { type: "FLOWER", color: pick.hex };
+        placed++;
+      }
+      return next;
+    });
+    setManuallyEdited(true);
+    setFlash({ msg: "Flowers scattered across the ground.", tone: "info" });
+    void placed;
+  };
+
   const applyPreset = (k: "simple" | "medium" | "complex") => {
     const p = PRESETS[k];
     setDeadEnds(p.deadEnds);
