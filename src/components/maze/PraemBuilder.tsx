@@ -2030,6 +2030,31 @@ export function PraemBuilder() {
           </Section>
         )}
 
+        {isRoomMode(mode) && (
+          <Section title="Garden">
+            <p className="mb-2 text-[10px] text-muted-foreground">
+              One-click base: grass floor everywhere (primes get a subtly darker green), plus a
+              two-cell tree border. Overwrites the room — run on a mostly-empty layout.
+            </p>
+            <button
+              onClick={generateGardenBase}
+              className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+            >
+              Generate Garden Base
+            </button>
+            <p className="mb-2 mt-3 text-[10px] text-muted-foreground">
+              Rolls a small chance on every ground tile to grow a flower in a random colour. Adds
+              to existing flowers — clicking again scatters more.
+            </p>
+            <button
+              onClick={scatterFlowers}
+              className="w-full rounded-md border border-[color:var(--accent-gold)]/40 bg-[color:var(--accent-gold)]/10 px-3 py-1.5 text-xs text-[color:var(--accent-gold)] hover:bg-[color:var(--accent-gold)]/20"
+            >
+              Scatter Flowers
+            </button>
+          </Section>
+        )}
+
         <Section title="Level Metadata">
           <Field label="Level #">
             <input
