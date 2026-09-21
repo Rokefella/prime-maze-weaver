@@ -236,9 +236,17 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             cell.type === "FLOWER" ||
             cell.type === "TREE" ||
             cell.type === "GARDEN_DECOR" ||
+            cell.type === "GROUND" ||
             cell.type === "LIGHT";
           fill = recolourable
-            ? roomDoorColor(cell.color || (cell.type === "LIGHT" ? "#e6b85c" : undefined))
+            ? roomDoorColor(
+                cell.color ||
+                  (cell.type === "LIGHT"
+                    ? "#e6b85c"
+                    : cell.type === "GROUND"
+                      ? "#4a7c3f"
+                      : undefined),
+              )
             : swatchFor(cell.type, mode);
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, w, h);
