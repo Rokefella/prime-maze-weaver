@@ -126,6 +126,7 @@ function isRoomMode(mode: BuilderMode) {
 /** Trimmed interior palette for Room modes. */
 const ROOM_TYPES: CellType[] = [
   "WALL",
+  "GROUND",
   "FURNITURE",
   "BOOKCASE",
   "LIGHT",
@@ -335,7 +336,7 @@ export function PraemBuilder() {
   const [pendingColoredTile, setPendingColoredTile] = useState<{
     col: number;
     row: number;
-    type: "FLOWER" | "TREE" | "GARDEN_DECOR" | "LIGHT";
+    type: "FLOWER" | "TREE" | "GARDEN_DECOR" | "LIGHT" | "GROUND";
     color: string;
   } | null>(null);
   const [dropTypeRows, setDropTypeRows] = useState<{ id: string; drop_key: string; name: string }[]>([]);
@@ -568,9 +569,12 @@ export function PraemBuilder() {
           tool === "FLOWER" ||
           tool === "TREE" ||
           tool === "GARDEN_DECOR" ||
+          tool === "GROUND" ||
           tool === "LIGHT"
         ) {
-          base.color = propDecorColor.trim() || (tool === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key);
+          base.color =
+            propDecorColor.trim() ||
+            (tool === "LIGHT" ? "#e6b85c" : tool === "GROUND" ? "#4a7c3f" : ROOM_DOOR_COLORS[0].key);
         }
         if (tool === "DROP_SPAWN") {
           const row = dropTypeRows.find((r) => r.drop_key === propDropKey);
@@ -674,13 +678,16 @@ export function PraemBuilder() {
         tool === "FLOWER" ||
         tool === "TREE" ||
         tool === "GARDEN_DECOR" ||
+        tool === "GROUND" ||
         tool === "LIGHT"
       ) {
         setPendingColoredTile({
           col,
           row,
           type: tool,
-          color: propDecorColor.trim() || (tool === "LIGHT" ? "#e6b85c" : ROOM_DOOR_COLORS[0].key),
+          color:
+            propDecorColor.trim() ||
+            (tool === "LIGHT" ? "#e6b85c" : tool === "GROUND" ? "#4a7c3f" : ROOM_DOOR_COLORS[0].key),
         });
         return;
       }
@@ -1655,6 +1662,7 @@ export function PraemBuilder() {
             (tool === "FLOWER" ||
               tool === "TREE" ||
               tool === "GARDEN_DECOR" ||
+              tool === "GROUND" ||
               tool === "LIGHT") && (
               <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
                 <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">

@@ -36,6 +36,7 @@ export type CellType =
   | "FLOWER"
   | "TREE"
   | "GARDEN_DECOR"
+  | "GROUND"
   | "ROOM_DOOR"
   | "DROP_SPAWN";
 

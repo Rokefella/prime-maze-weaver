@@ -33,6 +33,7 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   FLOWER: true,
   TREE: true,
   GARDEN_DECOR: true,
+  GROUND: true,
   ROOM_DOOR: true,
   DROP_SPAWN: true,
 };
