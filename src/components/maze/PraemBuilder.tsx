@@ -109,6 +109,14 @@ export const ROOM_MODES: { key: BuilderMode; label: string; color: string; blurb
   { key: "bernard_room", label: "Bernard Room", color: "#c98a1f", blurb: "Bernard's room interior." },
 ];
 
+/** Season presets for room interiors (Rooms mode only). */
+const SEASON_PRESETS: { key: string; label: string; color: string }[] = [
+  { key: "spring", label: "Spring", color: "#5bd75b" },
+  { key: "summer", label: "Summer", color: "#f2e34c" },
+  { key: "autumn", label: "Autumn", color: "#d99a2b" },
+  { key: "winter", label: "Winter", color: "#f5f5f5" },
+];
+
 function isRoomMode(mode: BuilderMode) {
   // Any non-core mode is treated as a room interior. The specific key is
   // the location_key used on publish; known presets still work as before.
