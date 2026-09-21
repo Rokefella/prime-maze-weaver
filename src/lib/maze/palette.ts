@@ -117,6 +117,7 @@ export const CELL_LABELS: Record<string, string> = {
   FLOWER: "Flower",
   TREE: "Tree",
   GARDEN_DECOR: "Garden Decor",
+  GROUND: "Ground",
   ROOM_DOOR: "Room Door",
   DROP_SPAWN: "Drop Spawn",
 };
