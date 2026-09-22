@@ -97,6 +97,7 @@ const SHADOW_TYPES: CellType[] = [
   "TRANSFER_POINT",
   "NPC",
   "DROP",
+  "ROOM_DOOR",
 ];
 
 /**
@@ -159,7 +160,9 @@ function toolsForMode(mode: BuilderMode) {
   const rmode = renderModeFor(mode);
   return list.map((type) => ({
     type,
-    swatch: swatchFor(type, rmode),
+    // Room Door keeps its colour swatch outside the maze (shadow palette has
+    // no entry for it, which would render near-invisible).
+    swatch: type === "ROOM_DOOR" ? ROOM_DOOR_COLORS[0].hex : swatchFor(type, rmode),
     label: CELL_LABELS[type] ?? type,
   }));
 }
