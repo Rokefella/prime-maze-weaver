@@ -97,7 +97,7 @@ const SHADOW_TYPES: CellType[] = [
   "TRANSFER_POINT",
   "NPC",
   "DROP",
-  "ROOM_DOOR",
+  "GARDEN_DOOR",
 ];
 
 /**
