@@ -63,7 +63,13 @@ export function exportLevel(
     for (let c = 0; c < size; c++) {
       const i = r * size + c;
       const cell = cells[i];
-      if (EXTRA_TYPES[cell.type]) {
+      // WALL is an extra type only outside maze mode; in maze mode it must
+      // reach the switch below so it lands in the dedicated walls array.
+      if (
+        cell.type === "WALL"
+          ? meta.mode !== "maze" && EXTRA_TYPES[cell.type]
+          : EXTRA_TYPES[cell.type]
+      ) {
         extraCells.push({
           col: c,
           row: r,
