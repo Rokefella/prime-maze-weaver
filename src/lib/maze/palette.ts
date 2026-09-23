@@ -59,6 +59,7 @@ export const SHADOW_PALETTE = {
   eye: "#ff4d6d",
   transfer: "#a78bfa",
   buildingBorder: "rgba(200,180,255,0.45)",
+  gardenDoor: "#22c55e",
 };
 
 export const BUILDING_TYPES = [
@@ -118,6 +119,7 @@ export const CELL_LABELS: Record<string, string> = {
   TREE: "Tree",
   GARDEN_DECOR: "Garden Decor",
   GROUND: "Ground",
+  GARDEN_DOOR: "Garden Door",
   ROOM_DOOR: "Room Door",
   DROP_SPAWN: "Drop Spawn",
 };
@@ -162,7 +164,8 @@ export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm
     switch (type) {
       case "OPEN": return SHADOW_PALETTE.open;
       case "PATH": return SHADOW_PALETTE.path;
-      case "GHOST_ZONE": return SHADOW_PALETTE.ghost;
+       case "GHOST_ZONE": return SHADOW_PALETTE.ghost;
+      case "GARDEN_DOOR": return SHADOW_PALETTE.gardenDoor;
       case "EYE": return SHADOW_PALETTE.eye;
       case "TRANSFER_POINT": return SHADOW_PALETTE.transfer;
       case "NPC": return PALETTE.npc;
