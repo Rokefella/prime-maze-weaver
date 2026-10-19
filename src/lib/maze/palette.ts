@@ -1,3 +1,22 @@
+import type { BuilderMode, CellState, CellType } from "./types";
+
+export const VILLAGE_DOORS = [
+  { type: "DOOR_MAZE", label: "Maze door", color: "#f5c060" },
+  { type: "DOOR_LIBRARY", label: "Library door", color: "#62a8ff" },
+  { type: "DOOR_EXCHANGE", label: "Exchange door", color: "#b79bff" },
+] as const;
+
+export function villageDoorWarning(mode: BuilderMode, cells: CellState[]): string {
+  if (mode !== "village") return "";
+  const present = new Set(cells.map((cell) => cell.type));
+  return VILLAGE_DOORS.filter((door) => !present.has(door.type))
+    .map((door) => `No ${door.label} placed`).join("; ");
+}
+
+export function isVillageDoor(type: CellType): boolean {
+  return VILLAGE_DOORS.some((door) => door.type === type);
+}
+
 // Visual palette for grid rendering. Reskinnable in one place.
 export const PALETTE = {
   background: "#0e0a1f",
@@ -33,6 +52,7 @@ export const VILLAGE_PALETTE = {
   buildingL: "#7d5f3d",
   buildingPrime: "#8a6a1f",
   buildingBorder: "rgba(255,225,170,0.55)",
+  doorOutline: "rgba(255,255,255,0.8)",
   eye: "#c9d94a",
   transfer: "#38bdf8",
 };
@@ -120,12 +140,17 @@ export const CELL_LABELS: Record<string, string> = {
   GARDEN_DECOR: "Garden Decor",
   GROUND: "Ground",
   GARDEN_DOOR: "Garden Door",
+  DOOR_MAZE: "Maze door",
+  DOOR_LIBRARY: "Library door",
+  DOOR_EXCHANGE: "Exchange door",
   ROOM_DOOR: "Room Door",
   DROP_SPAWN: "Drop Spawn",
 };
 
 export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm"): string {
   if (mode === "village") {
+    const door = VILLAGE_DOORS.find((door) => door.type === type);
+    if (door) return door.color;
     switch (type) {
       case "OPEN": return VILLAGE_PALETTE.open;
       case "PATH": return VILLAGE_PALETTE.path;

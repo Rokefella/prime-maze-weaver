@@ -38,6 +38,9 @@ export type CellType =
   | "GARDEN_DECOR"
   | "GROUND"
   | "GARDEN_DOOR"
+  | "DOOR_MAZE"
+  | "DOOR_LIBRARY"
+  | "DOOR_EXCHANGE"
   | "ROOM_DOOR"
   | "DROP_SPAWN";
 
