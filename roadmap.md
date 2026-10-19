@@ -1,0 +1,2 @@
+- [x] Add Village door types, tools, canvas drawing, and lossless export/import.
+- [x] Add non-blocking missing-door publish warning and verify behavior.

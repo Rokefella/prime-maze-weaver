@@ -32,6 +32,8 @@ import {
   PRAEM_CHARACTERS,
   ROOM_DOOR_COLORS,
   roomDoorColor,
+  isVillageDoor,
+  villageDoorWarning,
 } from "@/lib/maze/palette";
 
 const CHAR_SELECT_STYLE: React.CSSProperties = {
@@ -69,9 +71,9 @@ const VILLAGE_TYPES: CellType[] = [
   "BUILDING_S",
   "BUILDING_M",
   "BUILDING_L",
-  "BUILDING_23",
-  "BUILDING_47",
-  "BUILDING_89",
+  "DOOR_MAZE",
+  "DOOR_LIBRARY",
+  "DOOR_EXCHANGE",
   "FOREST",
   "WALL",
   "FURNITURE",
@@ -961,14 +963,19 @@ export function PraemBuilder() {
       setFlash({ msg: "Level number is required to publish.", tone: "warn" });
       return;
     }
-    if (!confirm(`Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
+    const doorWarning = villageDoorWarning(mode, cells);
+    if (doorWarning) setFlash({ msg: doorWarning, tone: "warn" });
+    if (!confirm(`${doorWarning ? `${doorWarning}\n\n` : ""}Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
       return;
     }
     setPublishing(true);
     try {
       const data = exportLevel(cells, ulam, meta);
       await publishLevel(data);
-      setFlash({ msg: `Published Level ${meta.levelNumber} to the game.`, tone: "info" });
+      setFlash({
+        msg: `Published Level ${meta.levelNumber} to the game.${doorWarning ? ` ${doorWarning}` : ""}`,
+        tone: doorWarning ? "warn" : "info",
+      });
     } catch (err) {
       console.error(err);
       setFlash({ msg: "Publish failed.", tone: "warn" });
@@ -1553,6 +1560,11 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
+          {mode === "village" && isVillageDoor(tool) && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Place a door on the edge of a building so it reads as the entrance.
+            </p>
+          )}
           {mode !== "maze" && PROP_TYPES.includes(tool) && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">

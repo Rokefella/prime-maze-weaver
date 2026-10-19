@@ -10,6 +10,7 @@ import {
   VILLAGE_EXTRA,
   abbrevCharacter,
   roomDoorColor,
+  isVillageDoor,
 } from "@/lib/maze/palette";
 
 export interface GridCanvasHandle {
@@ -250,6 +251,12 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             : swatchFor(cell.type, mode);
           ctx.fillStyle = fill;
           ctx.fillRect(x, y, w, h);
+
+          if (mode === "village" && isVillageDoor(cell.type) && cellPx >= 5) {
+            ctx.strokeStyle = VILLAGE_PALETTE.doorOutline;
+            ctx.lineWidth = Math.max(1, cellPx * 0.06);
+            ctx.strokeRect(x + w * 0.25, y + h * 0.16, w * 0.5, h * 0.68);
+          }
 
           const glyph = BUILDING_GLYPH[cell.type];
           if (glyph) {
