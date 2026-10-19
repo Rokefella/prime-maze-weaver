@@ -1560,6 +1560,11 @@ export function PraemBuilder() {
               </button>
             ))}
           </div>
+          {mode === "village" && isVillageDoor(tool) && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Place a door on the edge of a building so it reads as the entrance.
+            </p>
+          )}
           {mode !== "maze" && PROP_TYPES.includes(tool) && (
             <div className="mt-3 rounded-md border border-border bg-background/50 p-2">
               <div className="mb-2 text-[10px] uppercase tracking-widest text-[color:var(--accent-gold)]">
