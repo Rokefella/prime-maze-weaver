@@ -1,2 +1,5 @@
 - [x] Add Village door types, tools, canvas drawing, and lossless export/import.
 - [x] Add non-blocking missing-door publish warning and verify behavior.
+- [ ] Add Maze prime finder, code calculation, timed focus, and labels.
+- [ ] Add singleton Console door with export/import and publish warning.
+- [ ] Verify rule tests and real-draft editor flows.

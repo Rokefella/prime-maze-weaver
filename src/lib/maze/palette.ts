@@ -36,6 +36,9 @@ export const PALETTE = {
   veilMarker: "rgba(184,123,255,0.35)",
   drop: "#22c55e",
   dropSpawn: "#f97316",
+  consoleDoor: "#62e6f0",
+  consoleInner: "#b2f6fa",
+  consoleKey: "#17474c",
   highlight: "#ffffff",
   hoverOutline: "rgba(255,255,255,0.6)",
 };
@@ -144,6 +147,7 @@ export const CELL_LABELS: Record<string, string> = {
   DOOR_LIBRARY: "Library door",
   DOOR_EXCHANGE: "Exchange door",
   ROOM_DOOR: "Room Door",
+  CONSOLE_DOOR: "Console door",
   DROP_SPAWN: "Drop Spawn",
 };
 
