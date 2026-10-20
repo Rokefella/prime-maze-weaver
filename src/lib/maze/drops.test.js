@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { exportLevel, importLevel } from "./storage";
-import { buildUlam } from "./ulam";
+import { buildUlamData } from "./ulam";
 import { countDropTiles, dropPanelWarnings } from "./drops";
-const ulam = buildUlam(5);
+const ulam = buildUlamData(5);
 const cells = Array.from({ length: 25 }, () => ({ type: "CORRIDOR" }));
 cells[3] = { type: "DROP" };
 const base = { levelNumber: 1, levelName: "L", requiredFragments: 0, notes: "", mode: "maze" };
