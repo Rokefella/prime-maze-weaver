@@ -2,4 +2,4 @@
 - [x] Add non-blocking missing-door publish warning and verify behavior.
 - [x] Add Maze prime finder, code calculation, timed focus, and labels.
 - [x] Add singleton Console door with export/import and publish warning.
-- [x] Verify rule tests and real-draft editor flows.
+- [x] Verify rule tests and real-draft editor flows.- [x] Add Maze "Drops in this maze" panel with keyDrops/dropPool export/import.

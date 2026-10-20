@@ -108,6 +108,10 @@ export interface LevelMeta {
   mode: BuilderMode;
   /** Season label for room interiors (e.g. "spring", "christmas"). */
   season?: string;
+  /** Maze only: drop_keys of key drops placed once per run. */
+  keyDrops?: string[];
+  /** Maze only: chance-rolled drops per run. */
+  dropPool?: { drop_key: string; chance: number }[];
 }
 
 export interface ExportedLevel {
@@ -120,6 +124,8 @@ export interface ExportedLevel {
   season?: string;
   requiredFragments: number;
   notes: string;
+  keyDrops?: string[];
+  dropPool?: { drop_key: string; chance: number }[];
   start: { col: number; row: number } | null;
   storageMode: "walls" | "corridors";
   walls: { col: number; row: number }[];

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
+import { DropsPanel } from "./DropsPanel";
+import { countDropTiles, type DropTypeRow } from "@/lib/maze/drops";
 import { supabase } from "@/integrations/supabase/client";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
@@ -348,7 +350,7 @@ export function PraemBuilder() {
     type: "FLOWER" | "TREE" | "GARDEN_DECOR" | "LIGHT" | "GROUND";
     color: string;
   } | null>(null);
-  const [dropTypeRows, setDropTypeRows] = useState<{ id: string; drop_key: string; name: string }[]>([]);
+  const [dropTypeRows, setDropTypeRows] = useState<DropTypeRow[]>([]);
   const [dropTypesError, setDropTypesError] = useState<string | null>(null);
   const [propDropKey, setPropDropKey] = useState<string>("");
   const [propDropChance, setPropDropChance] = useState<number>(10);
@@ -481,7 +483,7 @@ export function PraemBuilder() {
 
   // Load the live drop types when the Drop Spawn tool is active in maze mode.
   useEffect(() => {
-    if (tool !== "DROP_SPAWN" || mode !== "maze") return;
+    if (mode !== "maze") return;
     if (dropTypeRows.length > 0) return;
     let cancelled = false;
     (async () => {
@@ -498,14 +500,14 @@ export function PraemBuilder() {
       };
       const { data, error } = await db
         .from("drop_types")
-        .select("id, drop_key, name")
+        .select("id, drop_key, name, category")
         .order("drop_key", { ascending: true });
       if (cancelled) return;
       if (error) {
         setDropTypesError(error.message);
         return;
       }
-      const rows = (data ?? []) as { id: string; drop_key: string; name: string }[];
+      const rows = (data ?? []) as DropTypeRow[];
       setDropTypesError(null);
       setDropTypeRows(rows);
       if (rows.length > 0) setPropDropKey((k) => k || rows[0].drop_key);
@@ -513,7 +515,7 @@ export function PraemBuilder() {
     return () => {
       cancelled = true;
     };
-  }, [tool, mode, dropTypeRows.length]);
+  }, [mode, dropTypeRows.length]);
 
   // When editing a room interior, suggest colors from ROOM_DOOR cells already
   // placed in the published maze with the same level number.
@@ -1861,6 +1863,15 @@ export function PraemBuilder() {
             Scatter 20 Drop Points
           </button>
         </Section>
+
+        <DropsPanel
+          tileCount={countDropTiles(cells)}
+          dropTypes={dropTypeRows}
+          error={dropTypesError}
+          keyDrops={meta.keyDrops ?? []}
+          dropPool={meta.dropPool ?? []}
+          onChange={(keyDrops, dropPool) => setMeta((m) => ({ ...m, keyDrops, dropPool }))}
+        />
 
         <PrimeFinder key={`${currentId ?? "draft"}:${meta.levelNumber}:${size}`} entries={fragmentEntries} showLabels={showPrimeLabels} onShowLabels={setShowPrimeLabels} onFocus={focusFragment} />
 
