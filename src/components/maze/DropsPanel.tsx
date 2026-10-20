@@ -16,7 +16,6 @@ export function DropsPanel({ tileCount, dropTypes, error, keyDrops, dropPool, on
   const [open, setOpen] = useState(true);
   const keyTypes = dropTypes.filter((d) => d.category === "key");
   const poolTypes = dropTypes.filter((d) => d.category !== "key");
-  const known = new Set(dropTypes.map((d) => d.drop_key));
   const loaded = dropTypes.length > 0;
   const missingKeys = keyDrops.filter((k) => !keyTypes.some((t) => t.drop_key === k));
   const warnings = dropPanelWarnings(keyDrops, dropPool, tileCount);
@@ -93,7 +92,6 @@ export function DropsPanel({ tileCount, dropTypes, error, keyDrops, dropPool, on
           </div>
 
           {warnings.map((w) => <p key={w} className="text-[11px] text-[color:var(--accent-gold)]">⚠ {w}</p>)}
-          {loaded && known.size === 0 && null}
         </div>
       )}
     </section>

@@ -182,6 +182,12 @@ export function exportLevel(
     ...(meta.season && meta.season.trim() ? { season: meta.season } : {}),
     requiredFragments: meta.requiredFragments,
     notes: meta.notes,
+    ...((meta.mode ?? "maze") === "maze" && meta.keyDrops?.length
+      ? { keyDrops: [...meta.keyDrops] }
+      : {}),
+    ...((meta.mode ?? "maze") === "maze" && meta.dropPool?.length
+      ? { dropPool: meta.dropPool.map((d) => ({ drop_key: d.drop_key, chance: d.chance })) }
+      : {}),
     start,
     storageMode,
     walls: storageMode === "walls" ? walls : [],
@@ -275,6 +281,10 @@ export function importLevel(data: ExportedLevel): {
       requiredFragments: data.requiredFragments,
       notes: data.notes,
       ...(data.season ? { season: data.season } : {}),
+      ...(data.keyDrops?.length ? { keyDrops: [...data.keyDrops] } : {}),
+      ...(data.dropPool?.length
+        ? { dropPool: data.dropPool.map((d) => ({ drop_key: d.drop_key, chance: d.chance })) }
+        : {}),
     },
   };
 }
