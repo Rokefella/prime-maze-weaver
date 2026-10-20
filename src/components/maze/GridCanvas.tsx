@@ -21,6 +21,7 @@ interface Props {
   ulam: UlamData;
   cells: CellState[];
   showNumbers: boolean;
+  showPrimeLabels?: boolean;
   highlight?: { col: number; row: number } | null;
   onCellClick: (col: number, row: number, e: { button: number; shiftKey: boolean }) => void;
   onCellHover?: (col: number, row: number | null) => void;
@@ -37,7 +38,7 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -79,6 +80,14 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<{ col: number; row: number } | null>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
+  const minScale = showPrimeLabels && mode === "maze" ? 32 / BASE_CELL : MIN_SCALE;
+
+  useEffect(() => {
+    if (scale >= minScale) return;
+    const k = minScale / scale;
+    setOffset((prev) => ({ x: viewport.w / 2 - (viewport.w / 2 - prev.x) * k, y: viewport.h / 2 - (viewport.h / 2 - prev.y) * k }));
+    setScale(minScale);
+  }, [minScale, scale, viewport.w, viewport.h]);
 
   // Animation tick for fragment pulse
   const [tick, setTick] = useState(0);
@@ -109,7 +118,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     if (viewport.w === 0 || viewport.h === 0) return;
     const gridPx = size * BASE_CELL;
     const s = Math.min(viewport.w / gridPx, viewport.h / gridPx) * 0.95;
-    const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+    const clamped = Math.max(minScale, Math.min(MAX_SCALE, s));
     setScale(clamped);
     setOffset({
       x: (viewport.w - gridPx * clamped) / 2,
@@ -121,12 +130,16 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
   const centerOn = useCallback(
     (col: number, row: number) => {
       const cellPx = BASE_CELL * scale;
+      const display = rotation === 1 ? { col: size - 1 - row, row: col }
+        : rotation === 2 ? { col: size - 1 - col, row: size - 1 - row }
+        : rotation === 3 ? { col: row, row: size - 1 - col } : { col, row };
       setOffset({
-        x: viewport.w / 2 - (col + 0.5) * cellPx,
-        y: viewport.h / 2 - (row + 0.5) * cellPx,
+        x: viewport.w / 2 - (display.col + 0.5) * cellPx,
+        y: viewport.h / 2 - (display.row + 0.5) * cellPx,
       });
+      containerRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
     },
-    [scale, viewport.w, viewport.h],
+    [scale, viewport.w, viewport.h, rotation, size],
   );
 
   useImperativeHandle(ref, () => ({ centerOn }), [centerOn]);
@@ -140,7 +153,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     canvas.height = viewport.h * dpr;
     canvas.style.width = `${viewport.w}px`;
     canvas.style.height = `${viewport.h}px`;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const bg =
@@ -443,6 +457,9 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           case "ROOM_DOOR":
             fill = roomDoorColor(cell.roomDoor?.color);
             break;
+          case "CONSOLE_DOOR":
+            fill = PALETTE.consoleDoor;
+            break;
           case "DROP_SPAWN":
             fill = PALETTE.dropSpawn;
             break;
@@ -483,6 +500,18 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText("D", x + w / 2, y + h / 2);
+          }
+        }
+        if (cell.type === "CONSOLE_DOOR") {
+          ctx.fillStyle = PALETTE.consoleInner;
+          ctx.fillRect(x + w * 0.18, y + h * 0.18, w * 0.64, h * 0.64);
+          ctx.fillStyle = PALETTE.consoleKey;
+          for (let keyRow = 0; keyRow < 3; keyRow++) {
+            for (let keyCol = 0; keyCol < 3; keyCol++) {
+              ctx.beginPath();
+              ctx.arc(x + w * (0.32 + keyCol * 0.18), y + h * (0.32 + keyRow * 0.18), Math.max(0.4, cellPx * 0.035), 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
         }
         // Drop spawn overlay: pulsing frame + chance label
@@ -533,12 +562,33 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         for (let c = startCol; c <= endCol; c++) {
           const canon = toCanonical(c, r);
           const i = canon.row * size + canon.col;
+          if (showPrimeLabels && cells[i].type === "FRAGMENT") continue;
           ctx.fillStyle = ulam.isPrime[i] ? PALETTE.primeNumber : PALETTE.nonPrimeNumber;
           ctx.fillText(
             String(ulam.numbers[i]),
             offset.x + (c + 0.5) * cellPx,
             offset.y + (r + 0.5) * cellPx,
           );
+        }
+      }
+    }
+
+    if (showPrimeLabels && mode === "maze") {
+      ctx.font = `${Math.max(8, Math.floor(cellPx * 0.21))}px ui-monospace, monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const canon = toCanonical(c, r);
+          const i = canon.row * size + canon.col;
+          if (cells[i].type !== "FRAGMENT") continue;
+          const label = String(ulam.numbers[i]).padStart(5, "0");
+          const cx = offset.x + (c + 0.5) * cellPx;
+          const cy = offset.y + (r + 0.5) * cellPx;
+          ctx.fillStyle = PALETTE.background;
+          ctx.fillRect(cx - cellPx * 0.47, cy - cellPx * 0.17, cellPx * 0.94, cellPx * 0.34);
+          ctx.fillStyle = PALETTE.highlight;
+          ctx.fillText(label, cx, cy, cellPx * 0.9);
         }
       }
     }
@@ -558,14 +608,14 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     // highlight (from prime list click) — convert canonical to display
     if (canonHighlight) {
       const dh = toDisplay(canonHighlight.col, canonHighlight.row);
+      ctx.save();
+      ctx.globalAlpha = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0.4 + 0.6 * pulse;
       ctx.strokeStyle = PALETTE.highlight;
       ctx.lineWidth = 3;
-      ctx.strokeRect(
-        offset.x + dh.col * cellPx + 1,
-        offset.y + dh.row * cellPx + 1,
-        cellPx - 2,
-        cellPx - 2,
-      );
+      ctx.beginPath();
+      ctx.arc(offset.x + (dh.col + 0.5) * cellPx, offset.y + (dh.row + 0.5) * cellPx, Math.max(4, cellPx * 0.65), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Route endpoints A (green) and B (red)
@@ -608,7 +658,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
@@ -685,11 +735,13 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         onContextMenu={(e) => e.preventDefault()}
         onWheel={(e) => {
           e.preventDefault();
-          const rect = canvasRef.current!.getBoundingClientRect();
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
           const mx = e.clientX - rect.left;
           const my = e.clientY - rect.top;
           const delta = -e.deltaY * 0.0015;
-          const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * (1 + delta)));
+          const newScale = Math.max(minScale, Math.min(MAX_SCALE, scale * (1 + delta)));
           // Zoom around mouse position
           const k = newScale / scale;
           setOffset({
@@ -739,7 +791,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           onClick={() => {
             const cx = viewport.w / 2;
             const cy = viewport.h / 2;
-            const newScale = Math.max(MIN_SCALE, scale * 0.8);
+            const newScale = Math.max(minScale, scale * 0.8);
             const k = newScale / scale;
             setOffset({ x: cx - (cx - offset.x) * k, y: cy - (cy - offset.y) * k });
             setScale(newScale);
@@ -752,7 +804,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           onClick={() => {
             const gridPx = size * BASE_CELL;
             const s = Math.min(viewport.w / gridPx, viewport.h / gridPx) * 0.95;
-            const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s));
+            const clamped = Math.max(minScale, Math.min(MAX_SCALE, s));
             setScale(clamped);
             setOffset({
               x: (viewport.w - gridPx * clamped) / 2,

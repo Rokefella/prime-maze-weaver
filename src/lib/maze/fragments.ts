@@ -1,4 +1,40 @@
 import type { UlamData } from "./ulam";
+import type { CellState } from "./types";
+
+export interface FragmentEntry { prime: number; col: number; row: number }
+
+export function formatPrime(n: number): string { return String(n).padStart(5, "0"); }
+
+export function isPrimeNumber(n: number): boolean {
+  if (!Number.isSafeInteger(n) || n < 2) return false;
+  if (n % 2 === 0) return n === 2;
+  for (let divisor = 3; divisor <= Math.sqrt(n); divisor += 2) {
+    if (n % divisor === 0) return false;
+  }
+  return true;
+}
+
+export function draftFragments(cells: CellState[], ulam: UlamData): FragmentEntry[] {
+  return cells.flatMap((cell, i) => cell.type === "FRAGMENT"
+    ? [{ prime: ulam.numbers[i], col: i % ulam.size, row: Math.floor(i / ulam.size) }]
+    : []).sort((a, b) => a.prime - b.prime);
+}
+
+export function fragmentSummary(entries: FragmentEntry[]) {
+  const middleIndex = entries.length % 2 === 1 ? Math.floor(entries.length / 2) : -1;
+  const code = entries.length >= 3 && middleIndex >= 0
+    ? formatPrime(entries.reduce((sum, entry, i) => sum + (i === middleIndex ? 0 : entry.prime), 0)) : "";
+  const warnings: string[] = [];
+  if (entries.length > 0 && entries.length % 2 === 0) warnings.push("The code rule needs an odd number of primes");
+  const seen = new Set<number>();
+  for (const { prime } of entries) {
+    if (!isPrimeNumber(prime)) warnings.push(`${prime} is not prime`);
+    if (prime >= 100000 && isPrimeNumber(prime) && !warnings.includes("Found numbers show in 5 digits, keep primes below 100000")) warnings.push("Found numbers show in 5 digits, keep primes below 100000");
+    if (seen.has(prime)) warnings.push(`Duplicate prime ${prime}`);
+    seen.add(prime);
+  }
+  return { middleIndex, code, warnings };
+}
 
 // Pick N primes spread evenly across the grid using farthest-point sampling.
 // If a reachability mask is supplied, only primes on reachable (non-wall,

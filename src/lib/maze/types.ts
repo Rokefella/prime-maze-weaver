@@ -42,6 +42,7 @@ export type CellType =
   | "DOOR_LIBRARY"
   | "DOOR_EXCHANGE"
   | "ROOM_DOOR"
+  | "CONSOLE_DOOR"
   | "DROP_SPAWN";
 
 export type BuilderMode =
