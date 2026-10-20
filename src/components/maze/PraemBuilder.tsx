@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
+import { PrimeFinder } from "./PrimeFinder";
 import { supabase } from "@/integrations/supabase/client";
 import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
-import { suggestFragmentCells } from "@/lib/maze/fragments";
+import { suggestFragmentCells, draftFragments, type FragmentEntry } from "@/lib/maze/fragments";
+import { consoleDoorWarning, placeConsoleDoor } from "@/lib/maze/consoleDoor";
 import { generateVillage, preserveManual } from "@/lib/maze/villageGenerator";
 import {
   exportLevel,
@@ -56,6 +58,7 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "GOLDEN_DOOR", swatch: PALETTE.goldenDoor, label: CELL_LABELS.GOLDEN_DOOR },
   { type: "BLUE_DOOR", swatch: PALETTE.blueDoor, label: CELL_LABELS.BLUE_DOOR },
   { type: "DOOR_TO_ROOM", swatch: PALETTE.doorToRoom, label: CELL_LABELS.DOOR_TO_ROOM },
+  { type: "CONSOLE_DOOR", swatch: PALETTE.consoleDoor, label: CELL_LABELS.CONSOLE_DOOR },
   { type: "NPC", swatch: PALETTE.npc, label: CELL_LABELS.NPC },
   { type: "VEIL", swatch: PALETTE.veil, label: CELL_LABELS.VEIL },
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
@@ -307,6 +310,7 @@ export function PraemBuilder() {
   const [cells, setCells] = useState<CellState[]>(() => makeBlankCells(30));
   const [tool, setTool] = useState<CellType>("WALL");
   const [showNumbers, setShowNumbers] = useState(false);
+  const [showPrimeLabels, setShowPrimeLabels] = useState(false);
   const [meta, setMeta] = useState<LevelMeta>(defaultMeta);
   const [deadEnds, setDeadEnds] = useState(50);
   const [branching, setBranching] = useState(50);
@@ -364,6 +368,18 @@ export function PraemBuilder() {
 
   const mode = meta.mode ?? "maze";
   const tools = useMemo(() => toolsForMode(mode), [mode]);
+  const fragmentEntries = useMemo(() => draftFragments(cells, ulam), [cells, ulam]);
+
+  useEffect(() => {
+    if (!highlight) return;
+    const timer = setTimeout(() => setHighlight(null), 3000);
+    return () => clearTimeout(timer);
+  }, [highlight]);
+
+  const focusFragment = (entry: FragmentEntry) => {
+    setHighlight({ col: entry.col, row: entry.row });
+    gridRef.current?.centerOn(entry.col, entry.row);
+  };
 
   useEffect(() => {
     // Keep the active tool valid for the current mode.
@@ -633,6 +649,16 @@ export function PraemBuilder() {
       }
 
       // Rectangle fill
+      if (tool === "CONSOLE_DOOR" && mode === "maze") {
+        const moved = cells.some((cell, i) => cell.type === "CONSOLE_DOOR" && i !== idx);
+        setCells((prev) => placeConsoleDoor(prev, idx));
+        setRectStart(null);
+        setManuallyEdited(true);
+        if (moved) setFlash({ msg: "Console door moved", tone: "info" });
+        return;
+      }
+
+      // Rectangle fill
       if (paintMode === "rect") {
         if (!rectStart) {
           setRectStart({ col, row });
@@ -720,7 +746,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells],
   );
 
   const runGenerate = () => {
@@ -963,7 +989,7 @@ export function PraemBuilder() {
       setFlash({ msg: "Level number is required to publish.", tone: "warn" });
       return;
     }
-    const doorWarning = villageDoorWarning(mode, cells);
+    const doorWarning = villageDoorWarning(mode, cells) || consoleDoorWarning(mode, cells);
     if (doorWarning) setFlash({ msg: doorWarning, tone: "warn" });
     if (!confirm(`${doorWarning ? `${doorWarning}\n\n` : ""}Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
       return;
@@ -1180,6 +1206,7 @@ export function PraemBuilder() {
           ulam={ulam}
           cells={cells}
           showNumbers={showNumbers}
+          showPrimeLabels={mode === "maze" && showPrimeLabels}
           highlight={highlight}
           onCellClick={onCellClick}
           onCellHover={(c, r) => setHoverCell(r === null ? null : { col: c, row: r })}
@@ -1834,6 +1861,8 @@ export function PraemBuilder() {
             Scatter 20 Drop Points
           </button>
         </Section>
+
+        <PrimeFinder key={`${currentId ?? "draft"}:${meta.levelNumber}:${size}`} entries={fragmentEntries} showLabels={showPrimeLabels} onShowLabels={setShowPrimeLabels} onFocus={focusFragment} />
 
         <Section title="Prime Reference">
           <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-background/50">
