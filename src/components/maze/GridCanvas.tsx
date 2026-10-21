@@ -658,7 +658,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
