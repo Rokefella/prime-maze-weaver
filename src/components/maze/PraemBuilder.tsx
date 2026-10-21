@@ -2,6 +2,8 @@ import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
+import { NpcOrbMini } from "@/lib/npcOrb";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countDropTiles, type DropTypeRow } from "@/lib/maze/drops";
 import { supabase } from "@/integrations/supabase/client";
 import { buildUlamData } from "@/lib/maze/ulam";
@@ -1315,18 +1317,16 @@ export function PraemBuilder() {
             </div>
             <label className="mb-1 block text-xs text-muted-foreground">Character</label>
             <div className="mb-3 w-64">
-              <select
-                autoFocus
-                value={pendingNpc.name}
-                onChange={(e) => setPendingNpc({ ...pendingNpc, name: e.target.value })}
-                style={CHAR_SELECT_STYLE}
-              >
-                {PRAEM_CHARACTERS.map((n) => (
-                  <option key={n} value={n} style={{ background: "#0d0d1a" }}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+              <Select value={pendingNpc.name} onValueChange={(name) => setPendingNpc({ ...pendingNpc, name })}>
+                <SelectTrigger aria-label="Character" className="text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRAEM_CHARACTERS.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      <span className="flex items-center gap-2"><NpcOrbMini npc={n} size={20} />{n}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-2">
               <button
@@ -1581,10 +1581,11 @@ export function PraemBuilder() {
                     : "border-border hover:bg-card/60"
                 }`}
               >
-                <span
-                  className="inline-block h-3 w-3 rounded-sm border border-white/20"
-                  style={{ background: t.swatch }}
-                />
+                {t.type === "NPC" || t.type === "BERNARD" || t.type === "MERCHANT" || t.type === "BANKER" ? (
+                  <NpcOrbMini npc={t.type === "NPC" ? "" : t.type} size={20} />
+                ) : (
+                  <span className="inline-block h-3 w-3 rounded-sm border border-white/20" style={{ background: t.swatch }} />
+                )}
                 <span>{t.label}</span>
               </button>
             ))}
@@ -1605,17 +1606,18 @@ export function PraemBuilder() {
                     NPC
                   </span>
                   {npcRows.length > 0 ? (
-                    <select
-                      value={propNpcKey}
-                      onChange={(e) => setPropNpcKey(e.target.value)}
-                      style={CHAR_SELECT_STYLE}
-                    >
-                      {npcRows.map((r) => (
-                        <option key={r.id} value={r.npc_key} style={{ background: "#0d0d1a" }}>
-                          {r.name ? `${r.name} (${r.npc_key})` : r.npc_key}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={propNpcKey} onValueChange={setPropNpcKey}>
+                      <SelectTrigger aria-label="NPC" className="h-auto min-h-9 text-xs [&>span]:line-clamp-none [&>span]:whitespace-normal [&>span]:text-left"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {npcRows.map((r) => (
+                          <SelectItem key={r.id} value={r.npc_key}>
+                            <span className="flex items-center gap-2"><NpcOrbMini npc={{ npcKey: r.npc_key, name: r.name }} size={20} />
+                              <span>{r.name ? `${r.name} (${r.npc_key})` : r.npc_key}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <>
                       <input
