@@ -3,6 +3,10 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
 import { DraftLibrary } from "./DraftLibrary";
+import { BuildingStylePicker } from "./BuildingStylePicker";
+import { Button } from "@/components/ui/button";
+import { ageBuildings, buildingColors, isPaintableBuilding, nextVillage } from "@/lib/maze/buildings";
+import type { BuildingTone, BuildingAge } from "@/lib/maze/types";
 import { NpcOrbMini } from "@/lib/npcOrb";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countDropTiles, type DropTypeRow } from "@/lib/maze/drops";
@@ -361,6 +365,9 @@ export function PraemBuilder() {
 
 
   const [vDensity, setVDensity] = useState(5);
+  const [buildingTone, setBuildingTone] = useState<BuildingTone>("sand");
+  const [buildingAge, setBuildingAge] = useState<BuildingAge>(4);
+  const [creatingVillage, setCreatingVillage] = useState(false);
   const [vMix, setVMix] = useState(5);
   const [vChaos, setVChaos] = useState(0);
   const [vBorder, setVBorder] = useState(true);
@@ -578,6 +585,10 @@ export function PraemBuilder() {
 
       const makeCell = (): CellState => {
         const base: CellState = { type: tool };
+        if (mode === "village" && isPaintableBuilding(tool)) {
+          base.tone = buildingTone;
+          base.age = buildingAge;
+        }
         if (PROP_TYPES.includes(tool)) {
           if (tool === "NPC" && mode !== "maze") {
             const row = npcRows.find((r) => r.npc_key === propNpcKey);
@@ -751,7 +762,7 @@ export function PraemBuilder() {
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells],
+    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells, buildingTone, buildingAge],
   );
 
   const runGenerate = () => {
@@ -976,6 +987,36 @@ export function PraemBuilder() {
     setFlash({ msg: "Duplicated — set a new level number before saving.", tone: "info" });
   };
 
+  const ageAllBuildings = () => {
+    if (mode !== "village") return;
+    const aged = ageBuildings(cells);
+    setCells(aged.cells);
+    if (aged.changed) setManuallyEdited(true);
+    setFlash({ msg: `${aged.changed} buildings aged.`, tone: "info" });
+  };
+
+  const createNextVillage = async () => {
+    if (mode !== "village" || creatingVillage || saving) return;
+    if (!Number.isInteger(meta.levelNumber) || meta.levelNumber < 1) {
+      setFlash({ msg: "Set a village level number first.", tone: "warn" });
+      return;
+    }
+    setCreatingVillage(true);
+    try {
+      const next = nextVillage(cells, meta);
+      const data = exportLevel(next.cells, ulam, next.meta);
+      const id = await upsertBuilderLevel({ id: null, data, status: "draft" });
+      loadFromLibrary({ id, savedAt: Date.now(), status: "draft", data });
+      await refreshLibrary();
+      setFlash({ msg: `Created ${next.meta.levelName}; ${next.changed} buildings aged.`, tone: "info" });
+    } catch (error) {
+      console.error(error);
+      setFlash({ msg: "Could not create the next village. Current village unchanged.", tone: "warn" });
+    } finally {
+      setCreatingVillage(false);
+    }
+  };
+
   const deleteFromLibrary = async (id: string) => {
     if (!confirm("Delete this saved level?")) return;
     try {
@@ -1175,6 +1216,7 @@ export function PraemBuilder() {
           rotation={rotation}
           readOnly={rotation !== 0}
           mode={renderModeFor(mode)}
+          villageBuildings={mode === "village"}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1530,6 +1572,7 @@ export function PraemBuilder() {
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {tools.map((t) => (
+              <div key={t.type} className={mode === "village" && t.type === "BUILDING_L" ? "col-span-2 grid grid-cols-2 gap-1.5" : "contents"}>
               <button
                 key={t.type}
                 onClick={() => setTool(t.type)}
@@ -1542,10 +1585,12 @@ export function PraemBuilder() {
                 {t.type === "NPC" || t.type === "BERNARD" || t.type === "MERCHANT" || t.type === "BANKER" ? (
                   <NpcOrbMini npc={t.type === "NPC" ? "" : t.type} size={20} />
                 ) : (
-                  <span className="inline-block h-3 w-3 rounded-sm border border-white/20" style={{ background: t.swatch }} />
+                  <span className="inline-block h-3 w-3 rounded-sm border border-white/20" style={{ background: mode === "village" && isPaintableBuilding(t.type) ? buildingColors(buildingTone, buildingAge).wall : t.swatch }} />
                 )}
                 <span>{t.label}</span>
               </button>
+              {mode === "village" && t.type === "BUILDING_L" && <BuildingStylePicker tone={buildingTone} age={buildingAge} onTone={setBuildingTone} onAge={setBuildingAge} />}
+              </div>
             ))}
           </div>
           {mode === "village" && isVillageDoor(tool) && (
@@ -1861,6 +1906,10 @@ export function PraemBuilder() {
 
         {mode === "village" && (
           <Section title="Village Population">
+            <div className="mb-3 flex flex-col gap-2">
+              <Button variant="outline" size="sm" className="text-[10px] text-[color:var(--accent-gold)]" onClick={ageAllBuildings}>AGE ALL</Button>
+              <Button variant="outline" size="sm" className="text-[10px] text-[color:var(--accent-gold)]" disabled={creatingVillage || saving} onClick={createNextVillage}>{creatingVillage ? "CREATING…" : "NEW VILLAGE FROM THIS"}</Button>
+            </div>
             <label className="text-xs text-muted-foreground">Density</label>
             <input
               type="range"

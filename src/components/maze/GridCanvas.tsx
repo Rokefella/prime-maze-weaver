@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardR
 import type { BuilderMode, CellState } from "@/lib/maze/types";
 import type { UlamData } from "@/lib/maze/ulam";
 import { drawNpcOrb } from "@/lib/npcOrb";
+import { buildingColors, isBuilding } from "@/lib/maze/buildings";
 import {
   PALETTE,
   VILLAGE_PALETTE,
@@ -32,13 +33,14 @@ interface Props {
   routePath?: Set<number> | null;
   mode?: "maze" | "village" | "shadow_realm";
   rectPreview?: { a: { col: number; row: number }; b: { col: number; row: number } } | null;
+  villageBuildings?: boolean;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -264,8 +266,13 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
                       : undefined),
               )
             : swatchFor(cell.type, mode);
-          ctx.fillStyle = fill;
+          const building = villageBuildings && isBuilding(cell.type) ? buildingColors(cell.tone, cell.age) : undefined;
+          ctx.fillStyle = building?.wall ?? fill;
           ctx.fillRect(x, y, w, h);
+          if (building) {
+            ctx.fillStyle = building.roof;
+            ctx.fillRect(x, y, w, Math.max(1, h * 0.3));
+          }
 
           if (mode === "village" && isVillageDoor(cell.type) && cellPx >= 5) {
             ctx.strokeStyle = VILLAGE_PALETTE.doorOutline;
@@ -651,7 +658,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
