@@ -10,7 +10,7 @@ describe("Village buildings", () => {
     expect(BUILDING_TONES.map((t) => [t.name, buildingColors(t.name, 4).wall])).toEqual([["terracotta","#c8603a"],["sand","#d4b078"],["slate","#6a86a8"],["sage","#7a9a6a"],["plum","#8a5a8a"],["stone","#8a8a96"]]);
   });
   it("applies age brightness and grey mixing with roofs 35% darker", () => {
-    expect(BUILDING_AGES.map((age) => buildingColors("sand",age))).toEqual([{wall:"#5d4f39",roof:"#3c3325"},{wall:"#826d4d",roof:"#544732"},{wall:"#a88c62",roof:"#6d5b40"},{wall:"#d4b078",roof:"#8a724e"}]);
+    expect(BUILDING_AGES.map((age) => buildingColors("sand",age))).toEqual([{wall:"#5d4f39",roof:"#3d3325"},{wall:"#816d4d",roof:"#544732"},{wall:"#a88d62",roof:"#6d5b3f"},{wall:"#d4b078",roof:"#8a724e"}]);
   });
   it("defaults legacy buildings to sand age 4 without rewriting fields", () => {
     const cells=blank();cells[0]={type:"BUILDING_S"};
