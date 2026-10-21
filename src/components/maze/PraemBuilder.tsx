@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
+import { DraftLibrary } from "./DraftLibrary";
 import { NpcOrbMini } from "@/lib/npcOrb";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { countDropTiles, type DropTypeRow } from "@/lib/maze/drops";
@@ -1157,50 +1158,7 @@ export function PraemBuilder() {
         <div className="px-3 pb-2 text-[10px] uppercase tracking-widest text-muted-foreground">
           Library
         </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-3">
-          {library.length === 0 && (
-            <div className="px-2 py-3 text-xs text-muted-foreground">No saved levels.</div>
-          )}
-          {library.map((sl) => (
-            <div
-              key={sl.id}
-              className={`group mb-1 flex items-center justify-between rounded-md border px-2 py-2 hover:bg-card/60 ${
-                currentId === sl.id
-                  ? "border-[color:var(--accent-gold)]/60 bg-[color:var(--accent-gold)]/5"
-                  : "border-transparent hover:border-border"
-              }`}
-            >
-              <button
-                className="flex-1 text-left"
-                onClick={() => loadFromLibrary(sl)}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate text-sm text-foreground">{sl.data.levelName}</span>
-                  <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider ${
-                      sl.status === "ready"
-                        ? "bg-[color:var(--accent-gold)]/20 text-[color:var(--accent-gold)]"
-                        : "bg-muted/40 text-muted-foreground"
-                    }`}
-                  >
-                    {sl.status ?? "draft"}
-                  </span>
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  L{sl.data.levelNumber} · {sl.data.gridSize}×{sl.data.gridSize} ·{" "}
-                  {(sl.data.mode ?? "maze").replace("_", " ")}
-                </div>
-              </button>
-              <button
-                onClick={() => deleteFromLibrary(sl.id)}
-                className="ml-2 opacity-0 transition group-hover:opacity-100 text-xs text-muted-foreground hover:text-destructive"
-                aria-label="Delete"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
+        <DraftLibrary library={library} currentId={currentId} onLoad={loadFromLibrary} onDelete={deleteFromLibrary} />
       </aside>
 
       {/* Center: grid */}
