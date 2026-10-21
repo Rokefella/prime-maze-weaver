@@ -176,7 +176,6 @@ export interface ExportedLevel {
     drop_type_id?: string;
     drop_key?: string;
     chance?: number;
-    tone?: BuildingTone;
     age?: BuildingAge;
     title?: string;
     line?: string;
