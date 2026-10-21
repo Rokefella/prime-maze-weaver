@@ -652,7 +652,14 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.font = `italic ${Math.max(9, Math.floor(cellPx * 0.4))}px ui-serif, Georgia, serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
-            ctx.fillText(cell.ghost.title, cx, cy - cellPx * 0.5 - 1);
+            ctx.fillText(cell.ghost.title, cx, cy - cellPx * 0.5 - 1, cellPx * 0.95);
+          }
+          if (cellPx >= 16 && cell.ghost?.name) {
+            ctx.fillStyle = hex;
+            ctx.font = `small-caps ${Math.max(9, Math.floor(cellPx * 0.4))}px ui-serif, Georgia, serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            ctx.fillText(cell.ghost.name, cx, cy + cellPx * 0.5 + 1, cellPx * 0.95);
           }
         }
       }

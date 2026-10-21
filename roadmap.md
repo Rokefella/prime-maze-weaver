@@ -7,3 +7,4 @@
 - [x] Add singleton Console door with export/import and publish warning.
 - [x] Verify rule tests and real-draft editor flows.- [x] Add Maze "Drops in this maze" panel with keyDrops/dropPool export/import.
 - [x] Add Start place (singleton, 4-cell radius) and Ghost orb (title/line/tone) tiles with lossless export/import.
+- [x] Update Ghost shared titles and optional names; verify creation, placement, and save/reload.

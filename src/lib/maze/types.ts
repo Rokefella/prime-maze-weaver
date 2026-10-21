@@ -96,7 +96,8 @@ export type BuildingAge = 1 | 2 | 3 | 4;
 export type GhostTone = "pale" | "mist" | "gold" | "rose";
 
 export interface GhostData {
-  title: string;
+  title?: string;
+  name?: string;
   line?: string;
   tone: GhostTone;
 }
