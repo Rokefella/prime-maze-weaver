@@ -1,3 +1,4 @@
+- [ ] Add shared NPC orbs to canvas and NPC pickers; verify placement and legacy data remain unchanged.
 - [x] Add Village door types, tools, canvas drawing, and lossless export/import.
 - [x] Add non-blocking missing-door publish warning and verify behavior.
 - [x] Add Maze prime finder, code calculation, timed focus, and labels.
