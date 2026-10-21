@@ -1,6 +1,7 @@
 import type { CellState, CellType, ExportedLevel, LevelMeta, SavedLevel } from "./types";
 import type { UlamData } from "./ulam";
 import { isBuilding } from "./buildings";
+import { isGhostTone } from "./spawnGhost";
 
 export const LIBRARY_KEY = "praem_levels_v1";
 
@@ -42,6 +43,8 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   ROOM_DOOR: true,
   CONSOLE_DOOR: true,
   DROP_SPAWN: true,
+  SPAWN: true,
+  GHOST: true,
 };
 
 export function exportLevel(
@@ -79,6 +82,11 @@ export function exportLevel(
           col: c,
           row: r,
           type: cell.type,
+          ...(cell.type === "GHOST" && cell.ghost ? {
+            title: cell.ghost.title,
+            ...(cell.ghost.line ? { line: cell.ghost.line } : {}),
+            tone: cell.ghost.tone,
+          } : {}),
           ...(meta.mode === "village" && isBuilding(cell.type) ? {
             ...(cell.tone !== undefined ? { tone: cell.tone } : {}),
             ...(cell.age !== undefined ? { age: cell.age } : {}),
@@ -102,6 +110,8 @@ export function exportLevel(
               }
             : {}),
         });
+        // Ghosts are walkable: keep maze geometry readers seeing an open cell.
+        if (cell.type === "GHOST" && meta.mode === "maze") corridors.push({ col: c, row: r });
         if (cell.type === "WHISPER") {
           whispers.push({
             col: c,
@@ -246,8 +256,15 @@ export function importLevel(data: ExportedLevel): {
   for (const e of data.extraCells ?? [])
     setCell(e.col, e.row, {
       type: e.type,
+      ...(e.type === "GHOST" && e.title ? {
+        ghost: {
+          title: e.title,
+          ...(e.line ? { line: e.line } : {}),
+          tone: isGhostTone(e.tone) ? e.tone : "pale",
+        },
+      } : {}),
       ...(data.mode === "village" && isBuilding(e.type) ? {
-        ...(e.tone !== undefined ? { tone: e.tone } : {}),
+        ...(e.tone !== undefined ? { tone: e.tone as CellState["tone"] } : {}),
         ...(e.age !== undefined ? { age: e.age } : {}),
       } : {}),
       ...(e.name || e.npc_name || e.npc_key

@@ -149,6 +149,8 @@ export const CELL_LABELS: Record<string, string> = {
   ROOM_DOOR: "Room Door",
   CONSOLE_DOOR: "Console door",
   DROP_SPAWN: "Drop Spawn",
+  SPAWN: "Start place",
+  GHOST: "Ghost orb",
 };
 
 export function swatchFor(type: string, mode: "maze" | "village" | "shadow_realm"): string {

@@ -43,7 +43,9 @@ export type CellType =
   | "DOOR_EXCHANGE"
   | "ROOM_DOOR"
   | "CONSOLE_DOOR"
-  | "DROP_SPAWN";
+  | "DROP_SPAWN"
+  | "SPAWN"
+  | "GHOST";
 
 export type BuilderMode =
   | "maze"
@@ -91,6 +93,14 @@ export interface DropSpawnData {
 export type BuildingTone = "terracotta" | "sand" | "slate" | "sage" | "plum" | "stone";
 export type BuildingAge = 1 | 2 | 3 | 4;
 
+export type GhostTone = "pale" | "mist" | "gold" | "rose";
+
+export interface GhostData {
+  title: string;
+  line?: string;
+  tone: GhostTone;
+}
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
@@ -103,6 +113,7 @@ export interface CellState {
   dropSpawn?: DropSpawnData;
   tone?: BuildingTone;
   age?: BuildingAge;
+  ghost?: GhostData;
 }
 
 export interface LevelMeta {
@@ -167,6 +178,9 @@ export interface ExportedLevel {
     chance?: number;
     tone?: BuildingTone;
     age?: BuildingAge;
+    title?: string;
+    line?: string;
+    tone?: GhostTone | BuildingTone;
   }[];
 }
 
