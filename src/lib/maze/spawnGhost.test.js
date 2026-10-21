@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { makeGhost, placeSpawn, spawnWarning } from "./spawnGhost";
+import { existingGhostTitle, makeGhost, placeSpawn, spawnWarning } from "./spawnGhost";
 import { exportLevel, importLevel } from "./storage";
 import { buildUlamData } from "./ulam";
 
@@ -20,12 +20,32 @@ describe("start place and ghost orbs", () => {
     expect(spawnWarning("village", [{ type: "SPAWN" }])).toBe("");
     expect(spawnWarning("maze", [{ type: "CORRIDOR" }])).toBe("");
   });
-  test("ghost title required and lengths capped at 24 / 140", () => {
-    expect(makeGhost("  ", "x", "pale")).toBeNull();
+  test("ghost titles are optional and capped at 24 characters", () => {
+    expect(makeGhost("  ", "", "pale")).toEqual({ tone: "pale" });
     const g = makeGhost("a".repeat(30), "b".repeat(200), "rose");
     expect(g.title.length).toBe(24);
     expect(g.line.length).toBe(140);
     expect(makeGhost("Hi", "", "mist")).toEqual({ title: "Hi", tone: "mist" });
+  });
+  test("ghost names are optional, trimmed and capped at 20 characters", () => {
+    expect(makeGhost("", "", "gold", "  Alice  ")).toEqual({ name: "Alice", tone: "gold" });
+    expect(makeGhost("", "", "gold", "a".repeat(25)).name).toHaveLength(20);
+  });
+  test("new titles reuse case-insensitive duplicates", () => {
+    expect(existingGhostTitle(["Listener", "Echo"], " listener ")).toBe("Listener");
+    expect(existingGhostTitle(["Echo"], "Listener")).toBeUndefined();
+  });
+  test("every optional title/name combination round-trips without NPC data", () => {
+    const ulam = buildUlamData(3);
+    const cells = Array.from({ length: 9 }, () => ({ type: "OPEN" }));
+    const ghosts = [makeGhost("", "", "pale"), makeGhost("", "", "mist", "Alice"), makeGhost("Echo", "", "gold"), makeGhost("Echo", "Hi", "rose", "Bob")];
+    ghosts.forEach((ghost, i) => { cells[i] = { type: "GHOST", ghost }; });
+    const data = exportLevel(cells, ulam, meta("village"));
+    ghosts.forEach((ghost, i) => {
+      expect(data.extraCells[i]).toEqual({ col: i % 3, row: Math.floor(i / 3), type: "GHOST", ...ghost });
+      expect(importLevel(data).cells[i]).toEqual(cells[i]);
+    });
+    expect(exportLevel(importLevel(data).cells, ulam, meta("village"))).toEqual(data);
   });
   test("export/import keeps spawn and ghosts in every mode", () => {
     const ulam = buildUlamData(3);

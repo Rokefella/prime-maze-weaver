@@ -83,7 +83,8 @@ export function exportLevel(
           row: r,
           type: cell.type,
           ...(cell.type === "GHOST" && cell.ghost ? {
-            title: cell.ghost.title,
+            ...(cell.ghost.title?.trim() ? { title: cell.ghost.title } : {}),
+            ...(cell.ghost.name?.trim() ? { name: cell.ghost.name } : {}),
             ...(cell.ghost.line ? { line: cell.ghost.line } : {}),
             tone: cell.ghost.tone,
           } : {}),
@@ -256,9 +257,10 @@ export function importLevel(data: ExportedLevel): {
   for (const e of data.extraCells ?? [])
     setCell(e.col, e.row, {
       type: e.type,
-      ...(e.type === "GHOST" && e.title ? {
+       ...(e.type === "GHOST" ? {
         ghost: {
-          title: e.title,
+           ...(e.title ? { title: e.title } : {}),
+           ...(e.name ? { name: e.name } : {}),
           ...(e.line ? { line: e.line } : {}),
           tone: isGhostTone(e.tone) ? e.tone : "pale",
         },
@@ -267,7 +269,7 @@ export function importLevel(data: ExportedLevel): {
         ...(e.tone !== undefined ? { tone: e.tone as CellState["tone"] } : {}),
         ...(e.age !== undefined ? { age: e.age } : {}),
       } : {}),
-      ...(e.name || e.npc_name || e.npc_key
+       ...(e.type !== "GHOST" && (e.name || e.npc_name || e.npc_key)
         ? {
             npc: {
               name: (e.name ?? e.npc_name ?? e.npc_key)!,

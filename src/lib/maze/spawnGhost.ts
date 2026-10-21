@@ -4,6 +4,7 @@ export const SPAWN_SWATCH = "#e8e4ff";
 export const GHOST_SWATCH = "#dfe8ff";
 export const SPAWN_RADIUS = 4;
 export const GHOST_TITLE_MAX = 24;
+export const GHOST_NAME_MAX = 20;
 export const GHOST_LINE_MAX = 140;
 
 export const GHOST_TONES: { key: GhostTone; hex: string }[] = [
@@ -39,10 +40,14 @@ export function spawnWarning(mode: BuilderMode, cells: CellState[]): string {
   return mode === "village" && !cells.some((c) => c.type === "SPAWN") ? "No start place placed" : "";
 }
 
-/** Returns a validated ghost, or null when the title is missing. */
-export function makeGhost(title: string, line: string, tone: GhostTone) {
+export function existingGhostTitle(names: string[], value: string): string | undefined {
+  return names.find((name) => name.toLowerCase() === value.trim().toLowerCase());
+}
+
+/** Empty optional fields are omitted; even an unnamed, untitled ghost is valid. */
+export function makeGhost(title: string, line: string, tone: GhostTone, name = "") {
   const t = title.trim().slice(0, GHOST_TITLE_MAX);
-  if (!t) return null;
+  const n = name.trim().slice(0, GHOST_NAME_MAX);
   const l = line.trim().slice(0, GHOST_LINE_MAX);
-  return { title: t, ...(l ? { line: l } : {}), tone };
+  return { ...(t ? { title: t } : {}), ...(n ? { name: n } : {}), ...(l ? { line: l } : {}), tone };
 }
