@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardR
 import type { BuilderMode, CellState } from "@/lib/maze/types";
 import type { UlamData } from "@/lib/maze/ulam";
 import { drawNpcOrb } from "@/lib/npcOrb";
+import { ghostToneHex, SPAWN_RADIUS } from "@/lib/maze/spawnGhost";
 import { buildingColors, isBuilding } from "@/lib/maze/buildings";
 import {
   PALETTE,
@@ -34,13 +35,14 @@ interface Props {
   mode?: "maze" | "village" | "shadow_realm";
   rectPreview?: { a: { col: number; row: number }; b: { col: number; row: number } } | null;
   villageBuildings?: boolean;
+  showSpawnRadius?: boolean;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, showSpawnRadius = false },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -593,6 +595,69 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       }
     }
 
+    // Start place and ghost overlays (all modes)
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        const canon = toCanonical(c, r);
+        const cell = cells[canon.row * size + canon.col];
+        if (cell.type !== "SPAWN" && cell.type !== "GHOST") continue;
+        const cx = offset.x + (c + 0.5) * cellPx;
+        const cy = offset.y + (r + 0.5) * cellPx;
+        if (cell.type === "SPAWN") {
+          ctx.strokeStyle = "rgba(232,228,255,0.9)";
+          ctx.lineWidth = Math.max(1, cellPx * 0.08);
+          ctx.beginPath();
+          ctx.arc(cx, cy, cellPx * 0.38, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = "#e8e4ff";
+          ctx.beginPath();
+          ctx.arc(cx, cy, Math.max(1, cellPx * 0.14), 0, Math.PI * 2);
+          ctx.fill();
+          const hovered = hover && hover.col === c && hover.row === r;
+          if (showSpawnRadius || hovered) {
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = "rgba(232,228,255,0.45)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, (SPAWN_RADIUS + 0.5) * cellPx, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = "rgba(232,228,255,0.75)";
+            ctx.font = "11px ui-monospace, monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("random spawn within 4", cx, cy - (SPAWN_RADIUS + 0.5) * cellPx - 3);
+            ctx.restore();
+          }
+        } else {
+          const hex = ghostToneHex(cell.ghost?.tone);
+          ctx.save();
+          const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, cellPx * 0.45);
+          g.addColorStop(0, hex);
+          g.addColorStop(1, "rgba(223,232,255,0)");
+          ctx.globalAlpha = 0.55 + 0.25 * pulse;
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(cx, cy, cellPx * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 0.8;
+          ctx.fillStyle = hex;
+          ctx.beginPath();
+          ctx.arc(cx, cy, Math.max(1, cellPx * 0.16), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          if (cellPx >= 16 && cell.ghost?.title) {
+            ctx.fillStyle = hex;
+            ctx.font = `italic ${Math.max(9, Math.floor(cellPx * 0.4))}px ui-serif, Georgia, serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "bottom";
+            ctx.fillText(cell.ghost.title, cx, cy - cellPx * 0.5 - 1);
+          }
+        }
+      }
+    }
+
     // hover outline
     if (hover && hover.col >= startCol && hover.col <= endCol && hover.row >= startRow && hover.row <= endRow) {
       ctx.strokeStyle = PALETTE.hoverOutline;
@@ -658,7 +723,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, showSpawnRadius]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);

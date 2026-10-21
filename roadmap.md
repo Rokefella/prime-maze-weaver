@@ -6,3 +6,4 @@
 - [x] Add Maze prime finder, code calculation, timed focus, and labels.
 - [x] Add singleton Console door with export/import and publish warning.
 - [x] Verify rule tests and real-draft editor flows.- [x] Add Maze "Drops in this maze" panel with keyDrops/dropPool export/import.
+- [x] Add Start place (singleton, 4-cell radius) and Ghost orb (title/line/tone) tiles with lossless export/import.
