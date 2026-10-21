@@ -92,6 +92,7 @@ export interface DropSpawnData {
 
 export type BuildingTone = "terracotta" | "sand" | "slate" | "sage" | "plum" | "stone";
 export type BuildingAge = 1 | 2 | 3 | 4;
+export type StreetStyle = "cobble" | "plates" | "brick";
 
 export type GhostTone = "pale" | "mist" | "gold" | "rose";
 
@@ -118,6 +119,8 @@ export interface CellState {
 }
 
 export interface LevelMeta {
+  /** Village only; omitted for untouched legacy villages. */
+  streetStyle?: StreetStyle;
   levelNumber: number;
   levelName: string;
   requiredFragments: number;
@@ -132,6 +135,7 @@ export interface LevelMeta {
 }
 
 export interface ExportedLevel {
+  streetStyle?: StreetStyle;
   schemaVersion: 1;
   mode: BuilderMode;
   levelNumber: number;

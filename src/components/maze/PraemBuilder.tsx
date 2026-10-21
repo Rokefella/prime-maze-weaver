@@ -4,6 +4,7 @@ import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
 import { DraftLibrary } from "./DraftLibrary";
 import { BuildingStylePicker } from "./BuildingStylePicker";
+import { PathStylePicker } from "./PathStylePicker";
 import { Button } from "@/components/ui/button";
 import { ageBuildings, buildingColors, isPaintableBuilding, nextVillage } from "@/lib/maze/buildings";
 import type { BuildingTone, BuildingAge } from "@/lib/maze/types";
@@ -1290,6 +1291,7 @@ export function PraemBuilder() {
           readOnly={rotation !== 0}
           mode={renderModeFor(mode)}
           villageBuildings={mode === "village"}
+          streetStyle={mode === "village" ? meta.streetStyle ?? "cobble" : undefined}
           showSpawnRadius={tool === "SPAWN"}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
@@ -2071,6 +2073,15 @@ export function PraemBuilder() {
             ))}
           </div>
         </Section></>
+        )}
+
+        {mode === "village" && (
+          <Section title="Path Style">
+            <PathStylePicker value={meta.streetStyle ?? "cobble"} onChange={(streetStyle) => {
+              setMeta((current) => ({ ...current, streetStyle }));
+              setManuallyEdited(true);
+            }} />
+          </Section>
         )}
 
         {mode === "village" && (

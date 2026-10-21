@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { BuilderMode, CellState } from "@/lib/maze/types";
+import type { BuilderMode, CellState, StreetStyle } from "@/lib/maze/types";
+import { isVillageStreet, STREET_STYLES } from "@/lib/maze/streetStyles";
 import type { UlamData } from "@/lib/maze/ulam";
 import { drawNpcOrb } from "@/lib/npcOrb";
 import { ghostToneHex, SPAWN_RADIUS } from "@/lib/maze/spawnGhost";
@@ -35,6 +36,7 @@ interface Props {
   mode?: "maze" | "village" | "shadow_realm";
   rectPreview?: { a: { col: number; row: number }; b: { col: number; row: number } } | null;
   villageBuildings?: boolean;
+  streetStyle?: StreetStyle;
   showSpawnRadius?: boolean;
 }
 
@@ -42,10 +44,19 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, showSpawnRadius = false },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [streetImage, setStreetImage] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!streetStyle) { setStreetImage(null); return; }
+    let active = true;
+    const image = new Image();
+    image.onload = () => { if (active) setStreetImage(image); };
+    image.src = STREET_STYLES.find((entry) => entry.key === streetStyle)?.image ?? STREET_STYLES[0].image;
+    return () => { active = false; };
+  }, [streetStyle]);
   const containerRef = useRef<HTMLDivElement>(null);
   const size = ulam.size;
 
@@ -171,6 +182,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     ctx.fillRect(0, 0, viewport.w, viewport.h);
 
     const cellPx = BASE_CELL * scale;
+    const streetPattern = streetImage && villageBuildings ? ctx.createPattern(streetImage, "repeat") : null;
+    streetPattern?.setTransform(new DOMMatrix().translate(offset.x, offset.y).scale(scale));
     // Determine visible cell range
     const startCol = Math.max(0, Math.floor(-offset.x / cellPx));
     const endCol = Math.min(size - 1, Math.ceil((viewport.w - offset.x) / cellPx));
@@ -191,6 +204,13 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         const h = Math.ceil(cellPx);
 
         let fill = PALETTE.corridor;
+        if (streetPattern && isVillageStreet(cell.type)) {
+          ctx.fillStyle = bg;
+          ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = streetPattern;
+          ctx.fillRect(x, y, w, h);
+          continue;
+        }
         if (mode !== "maze") {
           if (
             cell.type === "SQUARE" ||
@@ -730,7 +750,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, showSpawnRadius]);
+  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, streetImage, showSpawnRadius]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
