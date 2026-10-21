@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import type { BuilderMode, CellState } from "@/lib/maze/types";
 import type { UlamData } from "@/lib/maze/ulam";
+import { drawNpcOrb } from "@/lib/npcOrb";
 import {
   PALETTE,
   VILLAGE_PALETTE,
@@ -8,7 +9,6 @@ import {
   BUILDING_GLYPH,
   swatchFor,
   VILLAGE_EXTRA,
-  abbrevCharacter,
   roomDoorColor,
   isVillageDoor,
 } from "@/lib/maze/palette";
@@ -253,7 +253,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             cell.type === "GARDEN_DECOR" ||
             cell.type === "GROUND" ||
             cell.type === "LIGHT";
-          fill = recolourable
+          const isNpc = cell.type === "NPC" || cell.type === "BERNARD" || cell.type === "MERCHANT" || cell.type === "BANKER";
+          fill = isNpc ? swatchFor("OPEN", mode) : recolourable
             ? roomDoorColor(
                 cell.color ||
                   (cell.type === "LIGHT"
@@ -404,12 +405,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             ctx.arc(x + w / 2, y + h / 2, Math.max(2, cellPx * 0.3), 0, Math.PI * 2);
             ctx.stroke();
           }
-          if (cell.type === "NPC" && cell.npc?.name && cellPx >= 9) {
-            ctx.fillStyle = "rgba(160,140,200,0.8)";
-            ctx.font = "8px ui-monospace, monospace";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(abbrevCharacter(cell.npc.name), x + w / 2, y + h / 2);
+          if (isNpc) {
+            drawNpcOrb(ctx, cell.type === "NPC" ? cell.npc ?? "" : cell.type, x, y, cellPx);
           }
           if (routePath && routePath.has(i)) {
             ctx.fillStyle = "rgba(255,140,40,0.55)";
@@ -446,7 +443,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             fill = PALETTE.doorToRoom;
             break;
           case "NPC":
-            fill = PALETTE.npc;
+            fill = isPrime ? PALETTE.primeCorridor : PALETTE.corridor;
             break;
           case "VEIL":
             fill = PALETTE.veil;
@@ -467,12 +464,8 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
 
-        if (cell.type === "NPC" && cell.npc?.name && cellPx >= 9) {
-          ctx.fillStyle = "rgba(160,140,200,0.8)";
-          ctx.font = "8px ui-monospace, monospace";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(abbrevCharacter(cell.npc.name), x + w / 2, y + h / 2);
+        if (cell.type === "NPC") {
+          drawNpcOrb(ctx, cell.npc ?? "", x, y, cellPx);
         }
 
         // Veil overlay: faint diagonal hint so designer can distinguish from wall
