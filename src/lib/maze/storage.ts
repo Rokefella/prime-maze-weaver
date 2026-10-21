@@ -195,6 +195,7 @@ export function exportLevel(
     levelNumber: meta.levelNumber,
     levelName: meta.levelName,
     gridSize: size,
+    ...(meta.mode === "village" && meta.streetStyle ? { streetStyle: meta.streetStyle } : {}),
     ...(meta.season && meta.season.trim() ? { season: meta.season } : {}),
     requiredFragments: meta.requiredFragments,
     notes: meta.notes,
@@ -304,6 +305,7 @@ export function importLevel(data: ExportedLevel): {
     size,
     meta: {
       mode: data.mode ?? "maze",
+      ...(data.mode === "village" && data.streetStyle ? { streetStyle: data.streetStyle } : {}),
       levelNumber: data.levelNumber,
       levelName: data.levelName,
       requiredFragments: data.requiredFragments,

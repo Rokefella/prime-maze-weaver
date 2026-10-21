@@ -79,6 +79,7 @@
   --accent: oklch(0.78 0.14 85);
   --accent-foreground: oklch(0.18 0.04 295);
   --accent-gold: #d4af37;
+  --path-style-selected: #f5c060;
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.98 0.01 90);
   --border: oklch(0.30 0.05 295);
