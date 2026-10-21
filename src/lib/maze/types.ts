@@ -88,6 +88,9 @@ export interface DropSpawnData {
   chance: number;
 }
 
+export type BuildingTone = "terracotta" | "sand" | "slate" | "sage" | "plum" | "stone";
+export type BuildingAge = 1 | 2 | 3 | 4;
+
 export interface CellState {
   type: CellType;
   door?: DoorToRoomData;
@@ -98,6 +101,8 @@ export interface CellState {
   /** Recolourable room decoration or light. */
   color?: string;
   dropSpawn?: DropSpawnData;
+  tone?: BuildingTone;
+  age?: BuildingAge;
 }
 
 export interface LevelMeta {
@@ -160,6 +165,8 @@ export interface ExportedLevel {
     drop_type_id?: string;
     drop_key?: string;
     chance?: number;
+    tone?: BuildingTone;
+    age?: BuildingAge;
   }[];
 }
 

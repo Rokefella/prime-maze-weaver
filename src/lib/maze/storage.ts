@@ -1,5 +1,6 @@
 import type { CellState, CellType, ExportedLevel, LevelMeta, SavedLevel } from "./types";
 import type { UlamData } from "./ulam";
+import { isBuilding } from "./buildings";
 
 export const LIBRARY_KEY = "praem_levels_v1";
 
@@ -78,6 +79,10 @@ export function exportLevel(
           col: c,
           row: r,
           type: cell.type,
+          ...(meta.mode === "village" && isBuilding(cell.type) ? {
+            ...(cell.tone !== undefined ? { tone: cell.tone } : {}),
+            ...(cell.age !== undefined ? { age: cell.age } : {}),
+          } : {}),
           ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
           ...(cell.npc?.npcKey ? { npc_key: cell.npc.npcKey } : {}),
           ...(cell.whisper ? { whisper: cell.whisper } : {}),
@@ -241,6 +246,10 @@ export function importLevel(data: ExportedLevel): {
   for (const e of data.extraCells ?? [])
     setCell(e.col, e.row, {
       type: e.type,
+      ...(data.mode === "village" && isBuilding(e.type) ? {
+        ...(e.tone !== undefined ? { tone: e.tone } : {}),
+        ...(e.age !== undefined ? { age: e.age } : {}),
+      } : {}),
       ...(e.name || e.npc_name || e.npc_key
         ? {
             npc: {
