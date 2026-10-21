@@ -1,4 +1,4 @@
-- [ ] Group Library drafts with search, remembered sections, and unchanged draft actions; verify sorting and live loading.
+- [x] Group Library drafts with search, remembered sections, and unchanged draft actions; verify sorting and live loading.
 - [x] Add shared NPC orbs to canvas and NPC pickers; verify placement and legacy data remain unchanged.
 - [x] Add Village door types, tools, canvas drawing, and lossless export/import.
 - [x] Add non-blocking missing-door publish warning and verify behavior.
