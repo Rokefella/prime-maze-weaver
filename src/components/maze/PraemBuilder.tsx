@@ -15,6 +15,8 @@ import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells, draftFragments, type FragmentEntry } from "@/lib/maze/fragments";
 import { consoleDoorWarning, placeConsoleDoor } from "@/lib/maze/consoleDoor";
+import { GHOST_LINE_MAX, GHOST_SWATCH, GHOST_TITLE_MAX, GHOST_TONES, SPAWN_SWATCH, makeGhost, placeSpawn, spawnWarning } from "@/lib/maze/spawnGhost";
+import type { GhostTone } from "@/lib/maze/types";
 import { generateVillage, preserveManual } from "@/lib/maze/villageGenerator";
 import {
   exportLevel,
@@ -73,6 +75,7 @@ const MAZE_TOOLS: { type: CellType; swatch: string; label: string }[] = [
   { type: "DROP", swatch: PALETTE.drop, label: CELL_LABELS.DROP },
   { type: "ROOM_DOOR", swatch: ROOM_DOOR_COLORS[0].hex, label: CELL_LABELS.ROOM_DOOR },
   { type: "DROP_SPAWN", swatch: PALETTE.dropSpawn, label: CELL_LABELS.DROP_SPAWN },
+  { type: "GHOST", swatch: GHOST_SWATCH, label: CELL_LABELS.GHOST },
 ];
 
 const VILLAGE_TYPES: CellType[] = [
@@ -100,6 +103,8 @@ const VILLAGE_TYPES: CellType[] = [
   "BANKER",
   "LIGHT",
   "RUG",
+  "SPAWN",
+  "GHOST",
 ];
 
 const SHADOW_TYPES: CellType[] = [
@@ -112,6 +117,7 @@ const SHADOW_TYPES: CellType[] = [
   "NPC",
   "DROP",
   "GARDEN_DOOR",
+  "GHOST",
 ];
 
 /**
@@ -154,6 +160,8 @@ const ROOM_TYPES: CellType[] = [
   "BERNARD",
   "MERCHANT",
   "BANKER",
+  "SPAWN",
+  "GHOST",
 ];
 
 /** Rooms are village-flavoured interiors: same palette colours. */
@@ -176,7 +184,10 @@ function toolsForMode(mode: BuilderMode) {
     type,
     // Room Door keeps its colour swatch outside the maze (shadow palette has
     // no entry for it, which would render near-invisible).
-    swatch: type === "ROOM_DOOR" ? ROOM_DOOR_COLORS[0].hex : swatchFor(type, rmode),
+    swatch: type === "ROOM_DOOR" ? ROOM_DOOR_COLORS[0].hex
+      : type === "SPAWN" ? SPAWN_SWATCH
+      : type === "GHOST" ? GHOST_SWATCH
+      : swatchFor(type, rmode),
     label: CELL_LABELS[type] ?? type,
   }));
 }
@@ -343,6 +354,9 @@ export function PraemBuilder() {
   const [npcLoadError, setNpcLoadError] = useState<string | null>(null);
   const [propNpcKey, setPropNpcKey] = useState<string>("");
   const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
+  const [pendingGhost, setPendingGhost] = useState<{
+    col: number; row: number; title: string; line: string; tone: GhostTone;
+  } | null>(null);
   const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
   const [pendingRoomDoor, setPendingRoomDoor] = useState<{
     col: number;
@@ -662,6 +676,28 @@ export function PraemBuilder() {
           setFlash({ msg: "Fragments can only be placed on prime (gold) cells.", tone: "warn" });
           return;
         }
+      }
+
+      if (tool === "SPAWN" && mode !== "maze" && mode !== "shadow_realm") {
+        const res = placeSpawn(cells, idx);
+        setCells(res.cells);
+        setRectStart(null);
+        setManuallyEdited(true);
+        if (res.moved) setFlash({ msg: "Start place moved", tone: "info" });
+        return;
+      }
+
+      if (tool === "GHOST") {
+        const cur = cells[idx];
+        setRectStart(null);
+        setPendingGhost({
+          col,
+          row,
+          title: cur.type === "GHOST" ? cur.ghost?.title ?? "" : "",
+          line: cur.type === "GHOST" ? cur.ghost?.line ?? "" : "",
+          tone: cur.type === "GHOST" ? cur.ghost?.tone ?? "pale" : "pale",
+        });
+        return;
       }
 
       // Rectangle fill
@@ -1035,7 +1071,7 @@ export function PraemBuilder() {
       setFlash({ msg: "Level number is required to publish.", tone: "warn" });
       return;
     }
-    const doorWarning = villageDoorWarning(mode, cells) || consoleDoorWarning(mode, cells);
+    const doorWarning = [villageDoorWarning(mode, cells), spawnWarning(mode, cells), consoleDoorWarning(mode, cells)].filter(Boolean).join("; ");
     if (doorWarning) setFlash({ msg: doorWarning, tone: "warn" });
     if (!confirm(`${doorWarning ? `${doorWarning}\n\n` : ""}Publish Level ${meta.levelNumber} to the game? This overwrites any existing published version.`)) {
       return;
@@ -1217,6 +1253,7 @@ export function PraemBuilder() {
           readOnly={rotation !== 0}
           mode={renderModeFor(mode)}
           villageBuildings={mode === "village"}
+          showSpawnRadius={tool === "SPAWN"}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1376,6 +1413,79 @@ export function PraemBuilder() {
               </button>
               <button
                 onClick={() => setPendingExit(null)}
+                className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Pending ghost orb editor */}
+        {pendingGhost && (
+          <div className="absolute left-1/2 top-1/4 z-20 w-72 -translate-x-1/2 rounded-lg border border-border bg-card p-4 text-sm shadow-xl">
+            <div className="mb-2 font-medium">
+              Ghost orb @ ({pendingGhost.col},{pendingGhost.row})
+            </div>
+            <label className="mb-1 block text-xs text-muted-foreground">Title (required)</label>
+            <input
+              autoFocus
+              aria-label="Ghost title"
+              maxLength={GHOST_TITLE_MAX}
+              value={pendingGhost.title}
+              onChange={(e) => setPendingGhost({ ...pendingGhost, title: e.target.value })}
+              className="mb-2 w-full rounded border border-border bg-background px-2 py-1 text-xs"
+            />
+            <label className="mb-1 block text-xs text-muted-foreground">Line (optional)</label>
+            <textarea
+              aria-label="Ghost line"
+              maxLength={GHOST_LINE_MAX}
+              rows={2}
+              value={pendingGhost.line}
+              onChange={(e) => setPendingGhost({ ...pendingGhost, line: e.target.value })}
+              placeholder="A short whisper when the player comes near"
+              className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+            />
+            <div className="mb-2 text-right text-[10px] text-muted-foreground">
+              {pendingGhost.line.length}/{GHOST_LINE_MAX}
+            </div>
+            <div className="mb-1 text-xs text-muted-foreground">Tone</div>
+            <div className="mb-3 flex gap-1.5">
+              {GHOST_TONES.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setPendingGhost({ ...pendingGhost, tone: t.key })}
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
+                    pendingGhost.tone === t.key
+                      ? "border-[color:var(--accent-gold)] text-[color:var(--accent-gold)]"
+                      : "border-border text-muted-foreground hover:bg-card/60"
+                  }`}
+                >
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: t.hex }} />
+                  {t.key}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                disabled={!pendingGhost.title.trim()}
+                onClick={() => {
+                  const g = makeGhost(pendingGhost.title, pendingGhost.line, pendingGhost.tone);
+                  if (!g) return;
+                  const i = pendingGhost.row * size + pendingGhost.col;
+                  setCells((prev) => {
+                    const next = prev.slice();
+                    next[i] = { type: "GHOST", ghost: g };
+                    return next;
+                  });
+                  setManuallyEdited(true);
+                  setPendingGhost(null);
+                }}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90 disabled:opacity-40"
+              >
+                Place Ghost
+              </button>
+              <button
+                onClick={() => setPendingGhost(null)}
                 className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
               >
                 Cancel
