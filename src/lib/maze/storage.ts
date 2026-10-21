@@ -85,7 +85,7 @@ export function exportLevel(
           ...(cell.type === "GHOST" && cell.ghost ? {
             ...(cell.ghost.title?.trim() ? { title: cell.ghost.title } : {}),
             ...(cell.ghost.name?.trim() ? { name: cell.ghost.name } : {}),
-            ...(cell.ghost.line ? { line: cell.ghost.line } : {}),
+            ...(cell.ghost.line?.trim() ? { line: cell.ghost.line } : {}),
             tone: cell.ghost.tone,
           } : {}),
           ...(meta.mode === "village" && isBuilding(cell.type) ? {
