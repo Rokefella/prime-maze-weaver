@@ -1,4 +1,4 @@
-- [ ] Add Village building tones/ages, AGE ALL, and next-village draft creation; verify placement and save/reload compatibility.
+- [x] Add Village building tones/ages, AGE ALL, and next-village draft creation; verify placement and save/reload compatibility.
 - [x] Group Library drafts with search, remembered sections, and unchanged draft actions; verify sorting and live loading.
 - [x] Add shared NPC orbs to canvas and NPC pickers; verify placement and legacy data remain unchanged.
 - [x] Add Village door types, tools, canvas drawing, and lossless export/import.
