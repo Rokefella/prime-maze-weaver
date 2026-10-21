@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Keep saved-draft grouping/search/state in DraftLibrary and its pure libraryGroups helper; pass existing load/delete callbacks through unchanged so presentation never changes persistence.
+
 - Keep Village entrance definitions and missing-entrance validation in the shared maze palette module, so canvas colors, tool identification, and publishing checks use the same type registry.
 - Preserve special tiles through the existing extraCells export/import mechanism, so legacy levels round-trip without schema changes.
 - Keep NPC identity matching and orb geometry in the shared npcOrb helper, with React SVG and canvas adapters, so picker previews and grid rendering agree without altering saved cells.
