@@ -15,7 +15,8 @@ import { buildUlamData } from "@/lib/maze/ulam";
 import { generateMaze, PRESETS, computeReachable, findOrigin } from "@/lib/maze/generator";
 import { suggestFragmentCells, draftFragments, type FragmentEntry } from "@/lib/maze/fragments";
 import { consoleDoorWarning, placeConsoleDoor } from "@/lib/maze/consoleDoor";
-import { GHOST_LINE_MAX, GHOST_SWATCH, GHOST_TITLE_MAX, GHOST_TONES, SPAWN_SWATCH, makeGhost, placeSpawn, spawnWarning } from "@/lib/maze/spawnGhost";
+import { GHOST_LINE_MAX, GHOST_NAME_MAX, GHOST_SWATCH, GHOST_TITLE_MAX, GHOST_TONES, SPAWN_SWATCH, makeGhost, placeSpawn, spawnWarning } from "@/lib/maze/spawnGhost";
+import { addGhostTitle, listGhostTitles } from "@/lib/maze/ghostTitles";
 import type { GhostTone } from "@/lib/maze/types";
 import { generateVillage, preserveManual } from "@/lib/maze/villageGenerator";
 import {
@@ -355,8 +356,12 @@ export function PraemBuilder() {
   const [propNpcKey, setPropNpcKey] = useState<string>("");
   const [pendingExit, setPendingExit] = useState<PendingExit | null>(null);
   const [pendingGhost, setPendingGhost] = useState<{
-    col: number; row: number; title: string; line: string; tone: GhostTone;
+    col: number; row: number; title: string; name: string; line: string; tone: GhostTone;
   } | null>(null);
+  const [ghostTitles, setGhostTitles] = useState<string[]>([]);
+  const [ghostTitlesError, setGhostTitlesError] = useState<string | null>(null);
+  const [newGhostTitle, setNewGhostTitle] = useState<string | null>(null);
+  const [addingGhostTitle, setAddingGhostTitle] = useState(false);
   const [propExitDest, setPropExitDest] = useState<ExitDestination>("village");
   const [pendingRoomDoor, setPendingRoomDoor] = useState<{
     col: number;
@@ -467,6 +472,36 @@ export function PraemBuilder() {
     setCells(next);
     setPendingDoor(null);
     setPendingNpc(null);
+  };
+
+  useEffect(() => {
+    if (!pendingGhost) return;
+    let cancelled = false;
+    listGhostTitles().then((names) => {
+      if (cancelled) return;
+      setGhostTitles(names);
+      setGhostTitlesError(null);
+    }).catch((error: unknown) => {
+      if (!cancelled) setGhostTitlesError(error instanceof Error ? error.message : "Could not load titles");
+    });
+    return () => { cancelled = true; };
+  }, [pendingGhost?.col, pendingGhost?.row]);
+
+  const createGhostTitle = async () => {
+    if (!newGhostTitle?.trim() || addingGhostTitle) return;
+    setAddingGhostTitle(true);
+    try {
+      const result = await addGhostTitle(newGhostTitle);
+      if (!result) return;
+      setGhostTitles(result.names);
+      setPendingGhost((current) => current ? { ...current, title: result.selected } : null);
+      setNewGhostTitle(null);
+      setGhostTitlesError(null);
+    } catch (error) {
+      setGhostTitlesError(error instanceof Error ? error.message : "Could not add title");
+    } finally {
+      setAddingGhostTitle(false);
+    }
   };
 
   // Load the live NPC roster when the NPC tool is active in village/room modes.
@@ -690,10 +725,12 @@ export function PraemBuilder() {
       if (tool === "GHOST") {
         const cur = cells[idx];
         setRectStart(null);
+        setNewGhostTitle(null);
         setPendingGhost({
           col,
           row,
           title: cur.type === "GHOST" ? cur.ghost?.title ?? "" : "",
+          name: cur.type === "GHOST" ? cur.ghost?.name ?? "" : "",
           line: cur.type === "GHOST" ? cur.ghost?.line ?? "" : "",
           tone: cur.type === "GHOST" ? cur.ghost?.tone ?? "pale" : "pale",
         });
@@ -1426,15 +1463,38 @@ export function PraemBuilder() {
             <div className="mb-2 font-medium">
               Ghost orb @ ({pendingGhost.col},{pendingGhost.row})
             </div>
-            <label className="mb-1 block text-xs text-muted-foreground">Title (required)</label>
-            <input
-              autoFocus
-              aria-label="Ghost title"
-              maxLength={GHOST_TITLE_MAX}
-              value={pendingGhost.title}
-              onChange={(e) => setPendingGhost({ ...pendingGhost, title: e.target.value })}
-              className="mb-2 w-full rounded border border-border bg-background px-2 py-1 text-xs"
-            />
+            <label className="mb-1 block text-xs text-muted-foreground">Title (optional)</label>
+            <Select
+              value={newGhostTitle !== null ? "new-title" : pendingGhost.title ? `title:${pendingGhost.title}` : "no-title"}
+              onValueChange={(value) => {
+                if (value === "new-title") { setNewGhostTitle(""); return; }
+                setNewGhostTitle(null);
+                setPendingGhost({ ...pendingGhost, title: value === "no-title" ? "" : value.slice(6) });
+              }}
+            >
+              <SelectTrigger aria-label="Ghost title" className="mb-2 h-8 w-full text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {pendingGhost.title && !ghostTitles.includes(pendingGhost.title) && (
+                  <SelectItem value={`title:${pendingGhost.title}`}>(custom) {pendingGhost.title}</SelectItem>
+                )}
+                <SelectItem value="no-title">(no title)</SelectItem>
+                {ghostTitles.map((title) => <SelectItem key={title} value={`title:${title}`}>{title}</SelectItem>)}
+                <SelectItem value="new-title">+ New title...</SelectItem>
+              </SelectContent>
+            </Select>
+            {newGhostTitle !== null && (
+              <div className="mb-2 flex gap-2">
+                <input autoFocus aria-label="New Ghost title" maxLength={GHOST_TITLE_MAX} value={newGhostTitle}
+                  onChange={(e) => setNewGhostTitle(e.target.value)}
+                  className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-xs" />
+                <Button size="sm" disabled={addingGhostTitle || !newGhostTitle.trim()} onClick={createGhostTitle}>ADD</Button>
+              </div>
+            )}
+            {ghostTitlesError && <p role="alert" className="mb-2 text-xs text-destructive">{ghostTitlesError}</p>}
+            <label className="mb-1 block text-xs text-muted-foreground">Ghost name (optional)</label>
+            <input aria-label="Ghost name" maxLength={GHOST_NAME_MAX} value={pendingGhost.name}
+              onChange={(e) => setPendingGhost({ ...pendingGhost, name: e.target.value })}
+              className="mb-2 w-full rounded border border-border bg-background px-2 py-1 text-xs" />
             <label className="mb-1 block text-xs text-muted-foreground">Line (optional)</label>
             <textarea
               aria-label="Ghost line"
@@ -1451,7 +1511,7 @@ export function PraemBuilder() {
             <div className="mb-1 text-xs text-muted-foreground">Tone</div>
             <div className="mb-3 flex gap-1.5">
               {GHOST_TONES.map((t) => (
-                <button
+                <Button
                   key={t.key}
                   onClick={() => setPendingGhost({ ...pendingGhost, tone: t.key })}
                   className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] uppercase tracking-wider transition ${
@@ -1462,15 +1522,14 @@ export function PraemBuilder() {
                 >
                   <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: t.hex }} />
                   {t.key}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button
-                disabled={!pendingGhost.title.trim()}
+              <Button
+                disabled={addingGhostTitle}
                 onClick={() => {
-                  const g = makeGhost(pendingGhost.title, pendingGhost.line, pendingGhost.tone);
-                  if (!g) return;
+                  const g = makeGhost(pendingGhost.title, pendingGhost.line, pendingGhost.tone, pendingGhost.name);
                   const i = pendingGhost.row * size + pendingGhost.col;
                   setCells((prev) => {
                     const next = prev.slice();
@@ -1483,13 +1542,13 @@ export function PraemBuilder() {
                 className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:opacity-90 disabled:opacity-40"
               >
                 Place Ghost
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setPendingGhost(null)}
                 className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:bg-card"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
