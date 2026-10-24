@@ -128,6 +128,7 @@ export function exportLevel(
   cells: CellState[],
   ulam: UlamData,
   meta: LevelMeta,
+  world?: { world: WorldData; worldLayers: WorldLayerEntry[] },
 ): ExportedLevel {
   const size = ulam.size;
   const walls: { col: number; row: number }[] = [];
@@ -245,6 +246,7 @@ export function exportLevel(
     levelNumber: meta.levelNumber,
     levelName: meta.levelName,
     gridSize: size,
+    ...(world ? { world: world.world, worldLayers: world.worldLayers } : {}),
     ...(meta.mode === "village" && meta.streetStyle ? { streetStyle: meta.streetStyle } : {}),
     ...(meta.season && meta.season.trim() ? { season: meta.season } : {}),
     requiredFragments: meta.requiredFragments,
@@ -276,6 +278,8 @@ export function importLevel(data: ExportedLevel): {
   cells: CellState[];
   meta: LevelMeta;
   size: number;
+  world?: WorldData;
+  worldLayers?: WorldLayerEntry[];
 } {
   const size = data.gridSize;
   const total = size * size;
