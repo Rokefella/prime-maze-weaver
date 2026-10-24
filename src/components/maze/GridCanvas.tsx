@@ -689,6 +689,40 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       }
     }
 
+    // Village world overlays: new-at-level outlines and the walkable window
+    if (newCellIndices && newCellIndices.size > 0) {
+      ctx.save();
+      ctx.strokeStyle = "#f5c060";
+      ctx.lineWidth = 1;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const canon = toCanonical(c, r);
+          if (!newCellIndices.has(canon.row * size + canon.col)) continue;
+          ctx.strokeRect(
+            offset.x + c * cellPx + 1.5,
+            offset.y + r * cellPx + 1.5,
+            cellPx - 3,
+            cellPx - 3,
+          );
+        }
+      }
+      ctx.restore();
+    }
+    if (worldWindowSide != null && worldWindowSide > 0) {
+      const inset = (size - worldWindowSide) / 2;
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "rgba(232,228,255,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(
+        offset.x + inset * cellPx,
+        offset.y + inset * cellPx,
+        worldWindowSide * cellPx,
+        worldWindowSide * cellPx,
+      );
+      ctx.restore();
+    }
+
     // hover outline
     if (hover && hover.col >= startCol && hover.col <= endCol && hover.row >= startRow && hover.row <= endRow) {
       ctx.strokeStyle = PALETTE.hoverOutline;
