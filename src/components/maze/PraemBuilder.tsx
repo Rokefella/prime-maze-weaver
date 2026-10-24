@@ -1210,9 +1210,18 @@ export function PraemBuilder() {
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result as string) as ExportedLevel;
-        const { cells: c, meta: m, size: s } = importLevel(data);
+        const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(data);
         setSize(s);
-        setCells(c);
+        if (m.mode === "village" && w && wl) {
+          setWorldData(w);
+          setWorldLayers(wl);
+          setWorldLevel(1);
+          setCellsRaw(worldAtLevel(wl, s, 1));
+        } else {
+          setWorldData(null);
+          setWorldLayers(null);
+          setCellsRaw(c);
+        }
         setMeta(m);
         setManuallyEdited(false);
         setHighlight(null);
@@ -1362,6 +1371,8 @@ export function PraemBuilder() {
           villageBuildings={mode === "village"}
           streetStyle={mode === "village" ? meta.streetStyle ?? "cobble" : undefined}
           showSpawnRadius={tool === "SPAWN"}
+          worldWindowSide={worldActive && worldData ? windowSideAt(worldData, worldLevel) : null}
+          newCellIndices={newAtLevelIndices}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1722,6 +1733,15 @@ export function PraemBuilder() {
 
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
+        {worldActive && worldData && (
+          <WorldPanel
+            level={worldLevel}
+            era={eraForLevel(worldData, worldLevel)}
+            showNew={showNewAtLevel}
+            onLevel={changeWorldLevel}
+            onShowNew={setShowNewAtLevel}
+          />
+        )}
         <Section title="Mode">
           <div className="flex flex-wrap gap-1.5">
             {MODES.map((m) => (
