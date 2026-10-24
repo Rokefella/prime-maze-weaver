@@ -432,14 +432,18 @@ export function PraemBuilder() {
       }
       setWorldLayers(updated);
     }
-    setCells(resolved);
+    setCellsRaw(resolved);
   }, []);
+
+  // Painting paths keep the familiar setCells name; structural replacements
+  // (load, resize, mode change, level slider) use setCellsRaw instead.
+  const setCells = applyCells;
 
   const changeWorldLevel = (level: number) => {
     setWorldLevel(level);
     const layers = worldRef.current.layers;
     if (worldRef.current.active && layers) {
-      setCells(worldAtLevel(layers, size, level));
+      setCellsRaw(worldAtLevel(layers, size, level));
     }
   };
 
