@@ -1065,7 +1065,9 @@ export function PraemBuilder() {
 
   const newLevel = () => {
     if (manuallyEdited && !confirm("Discard current level and start fresh?")) return;
-    setCells(makeBlankCells(size, mode));
+    setWorldData(null);
+    setWorldLayers(null);
+    setCellsRaw(makeBlankCells(size, mode));
     setMeta({ ...defaultMeta(), mode });
     setManuallyEdited(false);
     setPendingDoor(null);
