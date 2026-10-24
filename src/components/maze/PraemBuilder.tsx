@@ -412,6 +412,48 @@ export function PraemBuilder() {
   const tools = useMemo(() => toolsForMode(mode), [mode]);
   const fragmentEntries = useMemo(() => draftFragments(cells, ulam), [cells, ulam]);
 
+  const worldActive = mode === "village" && worldData !== null && worldLayers !== null;
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+  const worldRef = useRef({ active: worldActive, layers: worldLayers, level: worldLevel, size });
+  worldRef.current = { active: worldActive, layers: worldLayers, level: worldLevel, size };
+
+  // Painting entry point: in a world draft every change is also written into
+  // the layers at the current level; otherwise identical to setCells.
+  const applyCells = useCallback((next: CellState[] | ((prev: CellState[]) => CellState[])) => {
+    const resolved = typeof next === "function" ? next(cellsRef.current) : next;
+    const w = worldRef.current;
+    if (w.active && w.layers) {
+      let updated = w.layers;
+      for (let i = 0; i < resolved.length; i++) {
+        if (!cellsEqual(cellsRef.current[i], resolved[i])) {
+          updated = paintLayerCell(updated, i % w.size, Math.floor(i / w.size), resolved[i], w.level);
+        }
+      }
+      setWorldLayers(updated);
+    }
+    setCells(resolved);
+  }, []);
+
+  const changeWorldLevel = (level: number) => {
+    setWorldLevel(level);
+    const layers = worldRef.current.layers;
+    if (worldRef.current.active && layers) {
+      setCells(worldAtLevel(layers, size, level));
+    }
+  };
+
+  const newAtLevelIndices = useMemo(() => {
+    if (!worldActive || !showNewAtLevel || !worldLayers) return null;
+    const set = new Set<number>();
+    for (const e of worldLayers) {
+      if (e.from !== worldLevel) continue;
+      if (e.col < 0 || e.col >= size || e.row < 0 || e.row >= size) continue;
+      set.add(e.row * size + e.col);
+    }
+    return set;
+  }, [worldActive, showNewAtLevel, worldLayers, worldLevel, size]);
+
   useEffect(() => {
     if (!highlight) return;
     const timer = setTimeout(() => setHighlight(null), 3000);
