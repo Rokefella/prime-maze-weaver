@@ -333,7 +333,7 @@ function generateShadowRealm(opts: {
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
-  const [cells, setCells] = useState<CellState[]>(() => makeBlankCells(30));
+  const [cells, setCellsRaw] = useState<CellState[]>(() => makeBlankCells(30));
   // Village world drafts: timeline metadata, source-of-truth layers and the
   // level currently shown on the canvas. Null for ordinary drafts.
   const [worldData, setWorldData] = useState<WorldData | null>(null);
