@@ -1083,7 +1083,7 @@ export function PraemBuilder() {
     }
     setSaving(true);
     try {
-      const data = exportLevel(cells, ulam, meta);
+      const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
       const id = await upsertBuilderLevel({ id: currentId, data, status });
       setCurrentId(id);
       await refreshLibrary();
@@ -1097,9 +1097,18 @@ export function PraemBuilder() {
   };
 
   const loadFromLibrary = (sl: SavedLevel) => {
-    const { cells: c, meta: m, size: s } = importLevel(sl.data);
+    const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(sl.data);
     setSize(s);
-    setCells(c);
+    if (m.mode === "village" && w && wl) {
+      setWorldData(w);
+      setWorldLayers(wl);
+      setWorldLevel(1);
+      setCellsRaw(worldAtLevel(wl, s, 1));
+    } else {
+      setWorldData(null);
+      setWorldLayers(null);
+      setCellsRaw(c);
+    }
     setMeta(m);
     setManuallyEdited(false);
     setPendingDoor(null);
@@ -1174,7 +1183,7 @@ export function PraemBuilder() {
     }
     setPublishing(true);
     try {
-      const data = exportLevel(cells, ulam, meta);
+      const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
       await publishLevel(data);
       setFlash({
         msg: `Published Level ${meta.levelNumber} to the game.${doorWarning ? ` ${doorWarning}` : ""}`,
@@ -1189,7 +1198,7 @@ export function PraemBuilder() {
   };
 
   const exportJson = () => {
-    const data = exportLevel(cells, ulam, meta);
+    const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
     const safeName = meta.levelName.replace(/[^a-z0-9_-]+/gi, "_") || "level";
     downloadJson(`${safeName}.json`, data);
   };
