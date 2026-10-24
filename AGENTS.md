@@ -12,3 +12,4 @@
 - Keep Start place singleton/warning and Ghost orb tones/validation in the shared spawnGhost helper; both export as optional extraCells types so legacy levels re-export unchanged.
 - Keep shared Ghost title reads/creation in ghostTitles and optional-field normalization in spawnGhost; Ghost names must not be imported as NPC identity.
 - Share Village street SVG assets between PathStylePicker and canvas patterns; keep streetStyle optional so legacy defaults remain render-only and metadata copies preserve explicit choices.
+- Keep Village world-layer timeline logic (active entry, painting splits, window/era reads) in the shared worldLayers helper; cells stay the current-level view and extraCells remains the saved preview so legacy drafts and readers are unchanged.
