@@ -3,6 +3,8 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
 import { DraftLibrary } from "./DraftLibrary";
+import { WorldPanel } from "./WorldPanel";
+import { cellsEqual, eraForLevel, paintLayerCell, windowSideAt, worldAtLevel } from "@/lib/maze/worldLayers";
 import { BuildingStylePicker } from "./BuildingStylePicker";
 import { PathStylePicker } from "./PathStylePicker";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,8 @@ import type {
   LevelMeta,
   SavedLevel,
   ExportedLevel,
+  WorldData,
+  WorldLayerEntry,
 } from "@/lib/maze/types";
 import {
   CELL_LABELS,
@@ -329,7 +333,13 @@ function generateShadowRealm(opts: {
 export function PraemBuilder() {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
-  const [cells, setCells] = useState<CellState[]>(() => makeBlankCells(30));
+  const [cells, setCellsRaw] = useState<CellState[]>(() => makeBlankCells(30));
+  // Village world drafts: timeline metadata, source-of-truth layers and the
+  // level currently shown on the canvas. Null for ordinary drafts.
+  const [worldData, setWorldData] = useState<WorldData | null>(null);
+  const [worldLayers, setWorldLayers] = useState<WorldLayerEntry[] | null>(null);
+  const [worldLevel, setWorldLevel] = useState(1);
+  const [showNewAtLevel, setShowNewAtLevel] = useState(true);
   const [tool, setTool] = useState<CellType>("WALL");
   const [showNumbers, setShowNumbers] = useState(false);
   const [showPrimeLabels, setShowPrimeLabels] = useState(false);
@@ -402,6 +412,52 @@ export function PraemBuilder() {
   const tools = useMemo(() => toolsForMode(mode), [mode]);
   const fragmentEntries = useMemo(() => draftFragments(cells, ulam), [cells, ulam]);
 
+  const worldActive = mode === "village" && worldData !== null && worldLayers !== null;
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+  const worldRef = useRef({ active: worldActive, layers: worldLayers, level: worldLevel, size });
+  worldRef.current = { active: worldActive, layers: worldLayers, level: worldLevel, size };
+
+  // Painting entry point: in a world draft every change is also written into
+  // the layers at the current level; otherwise identical to setCells.
+  const applyCells = useCallback((next: CellState[] | ((prev: CellState[]) => CellState[])) => {
+    const resolved = typeof next === "function" ? next(cellsRef.current) : next;
+    const w = worldRef.current;
+    if (w.active && w.layers) {
+      let updated = w.layers;
+      for (let i = 0; i < resolved.length; i++) {
+        if (!cellsEqual(cellsRef.current[i], resolved[i])) {
+          updated = paintLayerCell(updated, i % w.size, Math.floor(i / w.size), resolved[i], w.level);
+        }
+      }
+      setWorldLayers(updated);
+    }
+    setCellsRaw(resolved);
+  }, []);
+
+  // Painting paths keep the familiar setCells name; structural replacements
+  // (load, resize, mode change, level slider) use setCellsRaw instead.
+  const setCells = applyCells;
+
+  const changeWorldLevel = (level: number) => {
+    setWorldLevel(level);
+    const layers = worldRef.current.layers;
+    if (worldRef.current.active && layers) {
+      setCellsRaw(worldAtLevel(layers, size, level));
+    }
+  };
+
+  const newAtLevelIndices = useMemo(() => {
+    if (!worldActive || !showNewAtLevel || !worldLayers) return null;
+    const set = new Set<number>();
+    for (const e of worldLayers) {
+      if (e.from !== worldLevel) continue;
+      if (e.col < 0 || e.col >= size || e.row < 0 || e.row >= size) continue;
+      set.add(e.row * size + e.col);
+    }
+    return set;
+  }, [worldActive, showNewAtLevel, worldLayers, worldLevel, size]);
+
   useEffect(() => {
     if (!highlight) return;
     const timer = setTimeout(() => setHighlight(null), 3000);
@@ -422,7 +478,9 @@ export function PraemBuilder() {
     if (next === mode) return;
     if (manuallyEdited && !confirm("Switching mode clears the current layout. Continue?")) return;
     setMeta((m) => ({ ...m, mode: next }));
-    setCells(makeBlankCells(size, next));
+    setWorldData(null);
+    setWorldLayers(null);
+    setCellsRaw(makeBlankCells(size, next));
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
@@ -470,7 +528,7 @@ export function PraemBuilder() {
       }
     }
     setSize(newSize);
-    setCells(next);
+    setCellsRaw(next);
     setPendingDoor(null);
     setPendingNpc(null);
   };
@@ -1007,7 +1065,9 @@ export function PraemBuilder() {
 
   const newLevel = () => {
     if (manuallyEdited && !confirm("Discard current level and start fresh?")) return;
-    setCells(makeBlankCells(size, mode));
+    setWorldData(null);
+    setWorldLayers(null);
+    setCellsRaw(makeBlankCells(size, mode));
     setMeta({ ...defaultMeta(), mode });
     setManuallyEdited(false);
     setPendingDoor(null);
@@ -1025,7 +1085,7 @@ export function PraemBuilder() {
     }
     setSaving(true);
     try {
-      const data = exportLevel(cells, ulam, meta);
+      const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
       const id = await upsertBuilderLevel({ id: currentId, data, status });
       setCurrentId(id);
       await refreshLibrary();
@@ -1039,9 +1099,18 @@ export function PraemBuilder() {
   };
 
   const loadFromLibrary = (sl: SavedLevel) => {
-    const { cells: c, meta: m, size: s } = importLevel(sl.data);
+    const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(sl.data);
     setSize(s);
-    setCells(c);
+    if (m.mode === "village" && w && wl) {
+      setWorldData(w);
+      setWorldLayers(wl);
+      setWorldLevel(1);
+      setCellsRaw(worldAtLevel(wl, s, 1));
+    } else {
+      setWorldData(null);
+      setWorldLayers(null);
+      setCellsRaw(c);
+    }
     setMeta(m);
     setManuallyEdited(false);
     setPendingDoor(null);
@@ -1116,7 +1185,7 @@ export function PraemBuilder() {
     }
     setPublishing(true);
     try {
-      const data = exportLevel(cells, ulam, meta);
+      const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
       await publishLevel(data);
       setFlash({
         msg: `Published Level ${meta.levelNumber} to the game.${doorWarning ? ` ${doorWarning}` : ""}`,
@@ -1131,7 +1200,7 @@ export function PraemBuilder() {
   };
 
   const exportJson = () => {
-    const data = exportLevel(cells, ulam, meta);
+    const data = exportLevel(cells, ulam, meta, worldActive && worldData && worldLayers ? { world: worldData, worldLayers } : undefined);
     const safeName = meta.levelName.replace(/[^a-z0-9_-]+/gi, "_") || "level";
     downloadJson(`${safeName}.json`, data);
   };
@@ -1141,9 +1210,18 @@ export function PraemBuilder() {
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result as string) as ExportedLevel;
-        const { cells: c, meta: m, size: s } = importLevel(data);
+        const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(data);
         setSize(s);
-        setCells(c);
+        if (m.mode === "village" && w && wl) {
+          setWorldData(w);
+          setWorldLayers(wl);
+          setWorldLevel(1);
+          setCellsRaw(worldAtLevel(wl, s, 1));
+        } else {
+          setWorldData(null);
+          setWorldLayers(null);
+          setCellsRaw(c);
+        }
         setMeta(m);
         setManuallyEdited(false);
         setHighlight(null);
@@ -1293,6 +1371,8 @@ export function PraemBuilder() {
           villageBuildings={mode === "village"}
           streetStyle={mode === "village" ? meta.streetStyle ?? "cobble" : undefined}
           showSpawnRadius={tool === "SPAWN"}
+          worldWindowSide={worldActive && worldData ? windowSideAt(worldData, worldLevel) : null}
+          newCellIndices={newAtLevelIndices}
           rectPreview={
             paintMode === "rect" && rectStart && hoverCell
               ? { a: rectStart, b: hoverCell }
@@ -1653,6 +1733,15 @@ export function PraemBuilder() {
 
       {/* Right sidebar */}
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/30">
+        {worldActive && worldData && (
+          <WorldPanel
+            level={worldLevel}
+            era={eraForLevel(worldData, worldLevel)}
+            showNew={showNewAtLevel}
+            onLevel={changeWorldLevel}
+            onShowNew={setShowNewAtLevel}
+          />
+        )}
         <Section title="Mode">
           <div className="flex flex-wrap gap-1.5">
             {MODES.map((m) => (

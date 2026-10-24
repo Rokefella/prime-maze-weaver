@@ -38,13 +38,17 @@ interface Props {
   villageBuildings?: boolean;
   streetStyle?: StreetStyle;
   showSpawnRadius?: boolean;
+  /** Village world drafts: side of the centred walkable window, in cells. */
+  worldWindowSide?: number | null;
+  /** Village world drafts: canonical indices of cells new at the shown level. */
+  newCellIndices?: Set<number> | null;
 }
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -683,6 +687,40 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
           }
         }
       }
+    }
+
+    // Village world overlays: new-at-level outlines and the walkable window
+    if (newCellIndices && newCellIndices.size > 0) {
+      ctx.save();
+      ctx.strokeStyle = "#f5c060";
+      ctx.lineWidth = 1;
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const canon = toCanonical(c, r);
+          if (!newCellIndices.has(canon.row * size + canon.col)) continue;
+          ctx.strokeRect(
+            offset.x + c * cellPx + 1.5,
+            offset.y + r * cellPx + 1.5,
+            cellPx - 3,
+            cellPx - 3,
+          );
+        }
+      }
+      ctx.restore();
+    }
+    if (worldWindowSide != null && worldWindowSide > 0) {
+      const inset = (size - worldWindowSide) / 2;
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = "rgba(232,228,255,0.7)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(
+        offset.x + inset * cellPx,
+        offset.y + inset * cellPx,
+        worldWindowSide * cellPx,
+        worldWindowSide * cellPx,
+      );
+      ctx.restore();
     }
 
     // hover outline

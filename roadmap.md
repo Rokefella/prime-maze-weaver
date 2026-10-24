@@ -9,4 +9,4 @@
 - [x] Add Start place (singleton, 4-cell radius) and Ghost orb (title/line/tone) tiles with lossless export/import.
 - [x] Update Ghost shared titles and optional names; verify creation, placement, and save/reload.
 - [x] Add Village path styles with live drawing and lossless persistence; verify save/reload and copies.
-- [ ] Add WORLD panel for Village drafts with worldLayers (slider, painting, save/reload).
+- [x] Add WORLD panel for Village drafts with worldLayers (slider, painting, save/reload).

@@ -134,8 +134,56 @@ export interface LevelMeta {
   dropPool?: { drop_key: string; chance: number }[];
 }
 
+export interface WorldEra {
+  name: string;
+  from: number;
+  to: number;
+  street?: string;
+}
+
+/** World metadata for layered Village drafts (the world timeline). */
+export interface WorldData {
+  size: number;
+  villageOffset?: unknown;
+  window: { start: number; end: number; levels: number };
+  eras: WorldEra[];
+}
+
+/** One cell entry in a Village world layer timeline. */
+export interface WorldLayerEntry extends ExtraCellEntry {
+  /** First level this cell exists (1-30). */
+  from: number;
+  /** Last level this cell exists; missing = forever. */
+  until?: number;
+}
+
+/** A cell belonging to non-maze modes (village / shadow realm). */
+export interface ExtraCellEntry {
+  col: number;
+  row: number;
+  type: CellType;
+  name?: string;
+  npc_name?: string;
+  npc_key?: string;
+  whisper?: WhisperData;
+  exit?: RoomExitData;
+  roomDoor?: RoomDoorData;
+  color?: string;
+  dropSpawn?: DropSpawnData;
+  drop_type_id?: string;
+  drop_key?: string;
+  chance?: number;
+  age?: BuildingAge;
+  title?: string;
+  line?: string;
+  tone?: GhostTone | BuildingTone;
+}
+
 export interface ExportedLevel {
   streetStyle?: StreetStyle;
+  /** Village world drafts: timeline metadata and source-of-truth layers. */
+  world?: WorldData;
+  worldLayers?: WorldLayerEntry[];
   schemaVersion: 1;
   mode: BuilderMode;
   levelNumber: number;
@@ -166,26 +214,7 @@ export interface ExportedLevel {
   whispers: { col: number; row: number; text: string }[];
   landmarks: { col: number; row: number; name: string }[];
   /** Cells belonging to non-maze modes (village / shadow realm). */
-  extraCells?: {
-    col: number;
-    row: number;
-    type: CellType;
-    name?: string;
-    npc_name?: string;
-    npc_key?: string;
-    whisper?: WhisperData;
-    exit?: RoomExitData;
-    roomDoor?: RoomDoorData;
-    color?: string;
-    dropSpawn?: DropSpawnData;
-    drop_type_id?: string;
-    drop_key?: string;
-    chance?: number;
-    age?: BuildingAge;
-    title?: string;
-    line?: string;
-    tone?: GhostTone | BuildingTone;
-  }[];
+  extraCells?: ExtraCellEntry[];
 }
 
 export interface SavedLevel {
