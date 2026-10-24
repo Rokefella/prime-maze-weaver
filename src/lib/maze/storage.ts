@@ -310,45 +310,7 @@ export function importLevel(data: ExportedLevel): {
   for (const v of data.veils ?? []) setCell(v.col, v.row, { type: "VEIL" });
   for (const d of data.drops ?? []) setCell(d.col, d.row, { type: "DROP" });
   for (const e of data.extraCells ?? [])
-    setCell(e.col, e.row, {
-      type: e.type,
-       ...(e.type === "GHOST" ? {
-        ghost: {
-           ...(e.title ? { title: e.title } : {}),
-           ...(e.name ? { name: e.name } : {}),
-          ...(e.line ? { line: e.line } : {}),
-          tone: isGhostTone(e.tone) ? e.tone : "pale",
-        },
-      } : {}),
-      ...(data.mode === "village" && isBuilding(e.type) ? {
-        ...(e.tone !== undefined ? { tone: e.tone as CellState["tone"] } : {}),
-        ...(e.age !== undefined ? { age: e.age } : {}),
-      } : {}),
-       ...(e.type !== "GHOST" && (e.name || e.npc_name || e.npc_key)
-        ? {
-            npc: {
-              name: (e.name ?? e.npc_name ?? e.npc_key)!,
-              ...(e.npc_key ? { npcKey: e.npc_key } : {}),
-            },
-          }
-        : {}),
-      ...(e.whisper ? { whisper: e.whisper } : {}),
-      ...(e.exit ? { exit: e.exit } : {}),
-      ...(e.roomDoor || e.color
-        ? e.type === "ROOM_DOOR"
-          ? { roomDoor: e.roomDoor ?? { color: e.color ?? "blue" } }
-          : { color: e.color }
-        : {}),
-      ...(e.dropSpawn || e.drop_key
-        ? {
-            dropSpawn: e.dropSpawn ?? {
-              dropKey: e.drop_key!,
-              chance: e.chance ?? 10,
-              ...(e.drop_type_id ? { dropTypeId: e.drop_type_id } : {}),
-            },
-          }
-        : {}),
-    });
+    setCell(e.col, e.row, cellFromExtraEntry(e, data.mode ?? "maze"));
   if (data.blueDoor) setCell(data.blueDoor.col, data.blueDoor.row, { type: "BLUE_DOOR" });
   if (data.goldenDoor)
     setCell(data.goldenDoor.col, data.goldenDoor.row, { type: "GOLDEN_DOOR" });
