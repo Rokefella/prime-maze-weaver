@@ -214,26 +214,7 @@ export interface ExportedLevel {
   whispers: { col: number; row: number; text: string }[];
   landmarks: { col: number; row: number; name: string }[];
   /** Cells belonging to non-maze modes (village / shadow realm). */
-  extraCells?: {
-    col: number;
-    row: number;
-    type: CellType;
-    name?: string;
-    npc_name?: string;
-    npc_key?: string;
-    whisper?: WhisperData;
-    exit?: RoomExitData;
-    roomDoor?: RoomDoorData;
-    color?: string;
-    dropSpawn?: DropSpawnData;
-    drop_type_id?: string;
-    drop_key?: string;
-    chance?: number;
-    age?: BuildingAge;
-    title?: string;
-    line?: string;
-    tone?: GhostTone | BuildingTone;
-  }[];
+  extraCells?: ExtraCellEntry[];
 }
 
 export interface SavedLevel {
