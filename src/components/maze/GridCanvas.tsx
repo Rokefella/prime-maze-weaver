@@ -38,6 +38,10 @@ interface Props {
   villageBuildings?: boolean;
   streetStyle?: StreetStyle;
   showSpawnRadius?: boolean;
+  /** Village world drafts: side of the centred walkable window, in cells. */
+  worldWindowSide?: number | null;
+  /** Village world drafts: canonical indices of cells new at the shown level. */
+  newCellIndices?: Set<number> | null;
 }
 
 const MIN_SCALE = 0.15;
