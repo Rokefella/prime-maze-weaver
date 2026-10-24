@@ -159,34 +159,7 @@ export function exportLevel(
           col: c,
           row: r,
           type: cell.type,
-          ...(cell.type === "GHOST" && cell.ghost ? {
-            ...(cell.ghost.title?.trim() ? { title: cell.ghost.title } : {}),
-            ...(cell.ghost.name?.trim() ? { name: cell.ghost.name } : {}),
-            ...(cell.ghost.line?.trim() ? { line: cell.ghost.line } : {}),
-            tone: cell.ghost.tone,
-          } : {}),
-          ...(meta.mode === "village" && isBuilding(cell.type) ? {
-            ...(cell.tone !== undefined ? { tone: cell.tone } : {}),
-            ...(cell.age !== undefined ? { age: cell.age } : {}),
-          } : {}),
-          ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
-          ...(cell.npc?.npcKey ? { npc_key: cell.npc.npcKey } : {}),
-          ...(cell.whisper ? { whisper: cell.whisper } : {}),
-          ...(cell.exit ? { exit: cell.exit } : {}),
-          ...(cell.roomDoor
-            ? { roomDoor: cell.roomDoor, color: cell.roomDoor.color }
-            : {}),
-          ...(!cell.roomDoor && cell.color ? { color: cell.color } : {}),
-          ...(cell.dropSpawn
-            ? {
-                dropSpawn: cell.dropSpawn,
-                drop_key: cell.dropSpawn.dropKey,
-                chance: cell.dropSpawn.chance,
-                ...(cell.dropSpawn.dropTypeId
-                  ? { drop_type_id: cell.dropSpawn.dropTypeId }
-                  : {}),
-              }
-            : {}),
+          ...extraFieldsFor(cell, meta.mode ?? "maze"),
         });
         // Ghosts are walkable: keep maze geometry readers seeing an open cell.
         if (cell.type === "GHOST" && meta.mode === "maze") corridors.push({ col: c, row: r });
