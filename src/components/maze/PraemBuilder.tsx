@@ -478,7 +478,9 @@ export function PraemBuilder() {
     if (next === mode) return;
     if (manuallyEdited && !confirm("Switching mode clears the current layout. Continue?")) return;
     setMeta((m) => ({ ...m, mode: next }));
-    setCells(makeBlankCells(size, next));
+    setWorldData(null);
+    setWorldLayers(null);
+    setCellsRaw(makeBlankCells(size, next));
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
@@ -526,7 +528,7 @@ export function PraemBuilder() {
       }
     }
     setSize(newSize);
-    setCells(next);
+    setCellsRaw(next);
     setPendingDoor(null);
     setPendingNpc(null);
   };
