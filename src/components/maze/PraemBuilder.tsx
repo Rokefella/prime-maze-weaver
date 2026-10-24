@@ -3,6 +3,8 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
 import { DraftLibrary } from "./DraftLibrary";
+import { WorldPanel } from "./WorldPanel";
+import { cellsEqual, eraForLevel, paintLayerCell, windowSideAt, worldAtLevel } from "@/lib/maze/worldLayers";
 import { BuildingStylePicker } from "./BuildingStylePicker";
 import { PathStylePicker } from "./PathStylePicker";
 import { Button } from "@/components/ui/button";
@@ -39,6 +41,8 @@ import type {
   LevelMeta,
   SavedLevel,
   ExportedLevel,
+  WorldData,
+  WorldLayerEntry,
 } from "@/lib/maze/types";
 import {
   CELL_LABELS,
