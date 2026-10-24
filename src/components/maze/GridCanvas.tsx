@@ -48,7 +48,7 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false },
+  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
