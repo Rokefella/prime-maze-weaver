@@ -1,7 +1,84 @@
-import type { CellState, CellType, ExportedLevel, LevelMeta, SavedLevel } from "./types";
+import type { BuilderMode, CellState, CellType, ExportedLevel, ExtraCellEntry, LevelMeta, SavedLevel, WorldData, WorldLayerEntry } from "./types";
 import type { UlamData } from "./ulam";
 import { isBuilding } from "./buildings";
 import { isGhostTone } from "./spawnGhost";
+
+/** Extra fields of an extraCells entry for a cell, shared by export and world layers. */
+export function extraFieldsFor(cell: CellState, mode: BuilderMode): Partial<ExtraCellEntry> {
+  return {
+    ...(cell.type === "GHOST" && cell.ghost ? {
+      ...(cell.ghost.title?.trim() ? { title: cell.ghost.title } : {}),
+      ...(cell.ghost.name?.trim() ? { name: cell.ghost.name } : {}),
+      ...(cell.ghost.line?.trim() ? { line: cell.ghost.line } : {}),
+      tone: cell.ghost.tone,
+    } : {}),
+    ...(mode === "village" && isBuilding(cell.type) ? {
+      ...(cell.tone !== undefined ? { tone: cell.tone } : {}),
+      ...(cell.age !== undefined ? { age: cell.age } : {}),
+    } : {}),
+    ...(cell.npc?.name ? { name: cell.npc.name, npc_name: cell.npc.name } : {}),
+    ...(cell.npc?.npcKey ? { npc_key: cell.npc.npcKey } : {}),
+    ...(cell.whisper ? { whisper: cell.whisper } : {}),
+    ...(cell.exit ? { exit: cell.exit } : {}),
+    ...(cell.roomDoor
+      ? { roomDoor: cell.roomDoor, color: cell.roomDoor.color }
+      : {}),
+    ...(!cell.roomDoor && cell.color ? { color: cell.color } : {}),
+    ...(cell.dropSpawn
+      ? {
+          dropSpawn: cell.dropSpawn,
+          drop_key: cell.dropSpawn.dropKey,
+          chance: cell.dropSpawn.chance,
+          ...(cell.dropSpawn.dropTypeId
+            ? { drop_type_id: cell.dropSpawn.dropTypeId }
+            : {}),
+        }
+      : {}),
+  };
+}
+
+/** Rebuild a cell from an extraCells entry, shared by import and world layers. */
+export function cellFromExtraEntry(e: ExtraCellEntry, mode: BuilderMode): CellState {
+  return {
+    type: e.type,
+     ...(e.type === "GHOST" ? {
+      ghost: {
+         ...(e.title ? { title: e.title } : {}),
+         ...(e.name ? { name: e.name } : {}),
+        ...(e.line ? { line: e.line } : {}),
+        tone: isGhostTone(e.tone) ? e.tone : "pale",
+      },
+    } : {}),
+    ...(mode === "village" && isBuilding(e.type) ? {
+      ...(e.tone !== undefined ? { tone: e.tone as CellState["tone"] } : {}),
+      ...(e.age !== undefined ? { age: e.age } : {}),
+    } : {}),
+     ...(e.type !== "GHOST" && (e.name || e.npc_name || e.npc_key)
+      ? {
+          npc: {
+            name: (e.name ?? e.npc_name ?? e.npc_key)!,
+            ...(e.npc_key ? { npcKey: e.npc_key } : {}),
+          },
+        }
+      : {}),
+    ...(e.whisper ? { whisper: e.whisper } : {}),
+    ...(e.exit ? { exit: e.exit } : {}),
+    ...(e.roomDoor || e.color
+      ? e.type === "ROOM_DOOR"
+        ? { roomDoor: e.roomDoor ?? { color: e.color ?? "blue" } }
+        : { color: e.color }
+      : {}),
+    ...(e.dropSpawn || e.drop_key
+      ? {
+          dropSpawn: e.dropSpawn ?? {
+            dropKey: e.drop_key!,
+            chance: e.chance ?? 10,
+            ...(e.drop_type_id ? { dropTypeId: e.drop_type_id } : {}),
+          },
+        }
+      : {}),
+  };
+}
 
 export const LIBRARY_KEY = "praem_levels_v1";
 
