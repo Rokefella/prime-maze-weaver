@@ -332,6 +332,10 @@ export function importLevel(data: ExportedLevel): {
         ? { dropPool: data.dropPool.map((d) => ({ drop_key: d.drop_key, chance: d.chance })) }
         : {}),
     },
+    ...(data.world ? { world: data.world } : {}),
+    ...(Array.isArray(data.worldLayers)
+      ? { worldLayers: data.worldLayers.filter((e) => e && Number.isInteger(e.from)) }
+      : {}),
   };
 }
 
