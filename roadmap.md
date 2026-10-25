@@ -17,3 +17,5 @@
 - [x] Add WORLD surface/underground viewing, layer-aware places and transition markers; verify 250 real rows and intercepted move/undo/redo without writes.
 - [x] Add cached generated surface terrain overlay and rule tests; verify rendering/cache with controlled responses.
 - [ ] Verify full generated surface tiles from shared world_window; blocked by database statement timeouts even on a 4x4 centre window. No database changes permitted.
+- [ ] Add deterministic Maze skin preview and optional override persistence.
+- [ ] Add WORLD era skin editors and session undo/redo; verify without shared-data writes.
