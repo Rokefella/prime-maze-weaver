@@ -16,3 +16,4 @@
 - Keep the standalone WORLD workspace in components/world and lib/world, using only the existing browser client for external world tables; never provision schema or seed data because the authoritative tables live outside this workspace.
 - Keep Builder mounted across workspace switching and open WORLD area drafts through its existing importer with an unsaved-work confirmation, so navigation preserves editor state and formats.
 - Keep open-world plot numbering, ring membership, route ordering and measurement in the pure world model, and use d3-zoom for canvas navigation so all readouts and overlays share geometry and touch behavior.
+- Keep WORLD session undo/redo step types and labels in the pure history helper; WorldWorkspace replays steps through the existing data helpers with last-saved snapshots and id remapping, so re-inserts never rewrite history.
