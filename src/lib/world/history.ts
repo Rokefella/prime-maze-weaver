@@ -1,8 +1,10 @@
 import type { Terrain, DayNight } from './terrain';
+import type { MazeSkin } from '../maze/skins';
 import type { Area, Era, Id, Place, WorldLink } from './model';
 // Session undo history for WORLD writes: each step carries before/after so undo
 // and redo can replay the write without touching unrelated rows.
 export type WorldWrite =
+ | { type:'update-maze-skin'; order:number; before:MazeSkin; after:MazeSkin }
  | { type:'update-terrain'; key:string; before:Terrain; after:Terrain }
  | { type:'insert-terrain'; key:string; row:Terrain }
  | { type:'update-day-night'; before:DayNight; after:DayNight }
@@ -21,6 +23,7 @@ export function pushStep(stack: WorldWrite[], step: WorldWrite, cap = HISTORY_CA
 const placeName = (p: Place) => p.name || p.kind;
 export function writeLabel(w: WorldWrite): string {
  switch (w.type) {
+   case 'update-maze-skin': return `maze skin ${w.after.name}`;
   case 'update-terrain': return `terrain ${w.after.name}`;
   case 'insert-terrain': return `create terrain ${w.row.name}`;
   case 'update-day-night': return 'day and night';

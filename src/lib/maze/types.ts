@@ -121,6 +121,8 @@ export interface CellState {
 }
 
 export interface LevelMeta {
+  /** Maze only; absent selects the automatic era skin. */
+  skin?: number;
   /** Village only; omitted for untouched legacy villages. */
   streetStyle?: StreetStyle;
   levelNumber: number;
@@ -183,6 +185,7 @@ export interface ExtraCellEntry {
 }
 
 export interface ExportedLevel {
+  skin?: number;
   streetStyle?: StreetStyle;
   /** Village world drafts: timeline metadata and source-of-truth layers. */
   world?: WorldData;

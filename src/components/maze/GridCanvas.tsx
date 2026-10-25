@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
+import { drawSkinCell,skinCell,type MazeSkin } from '@/lib/maze/skins';
 import type { Terrain } from '@/lib/world/terrain';
 import type { BuilderMode, CellState, StreetStyle } from "@/lib/maze/types";
 import { isVillageStreet, STREET_STYLES } from "@/lib/maze/streetStyles";
@@ -22,6 +23,7 @@ export interface GridCanvasHandle {
 }
 
 interface Props {
+  mazeSkin?:MazeSkin|null;
   terrainTypes?:Terrain[];
   ulam: UlamData;
   cells: CellState[];
@@ -50,7 +52,7 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { terrainTypes = [], ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
+  { mazeSkin = null, terrainTypes = [], ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -190,6 +192,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     const css=getComputedStyle(canvas);
     const terrainColors={unknown:css.getPropertyValue('--terrain-unknown').trim(),mark:css.getPropertyValue('--terrain-mark').trim(),outline:css.getPropertyValue('--terrain-outline').trim()};
     const terrainMap=new Map(terrainTypes.map(t=>[t.key,t]));
+    const skinColors=new Map(terrainTypes.map(t=>[t.key,t.color||terrainColors.unknown]));
     const cellPx = BASE_CELL * scale;
     const streetPattern = streetImage && villageBuildings ? ctx.createPattern(streetImage, "repeat") : null;
     streetPattern?.setTransform(new DOMMatrix().translate(offset.x, offset.y).scale(scale));
@@ -508,6 +511,15 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         }
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, w, h);
+        if(mode==='maze'&&mazeSkin&&cell.type!=='VEIL'){
+          const result=skinCell(cells,size,canon.col,canon.row,mazeSkin);
+          if(cell.type==='WALL'||cell.type==='CORRIDOR')drawSkinCell(ctx,result,x,y,w,h,skinColors,fill,mazeSkin.accent);
+          else {
+            // Keep the existing coloured tile/glyph as an inset mark on the skinned floor.
+            drawSkinCell(ctx,result,x,y,w,h,skinColors,PALETTE.corridor,mazeSkin.accent);
+            if(cell.type!=='SPAWN'&&cell.type!=='GHOST'&&cell.type!=='NPC'){ctx.fillStyle=fill;ctx.fillRect(x+w*.15,y+h*.15,w*.7,h*.7);}
+          }
+        }
 
         if (cell.type === "NPC") {
           drawNpcOrb(ctx, cell.npc ?? "", x, y, cellPx);
@@ -800,7 +812,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [terrainTypes,cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, streetImage, showSpawnRadius]);
+  }, [mazeSkin,terrainTypes,cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, streetImage, showSpawnRadius]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);

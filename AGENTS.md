@@ -1,4 +1,5 @@
 # Architecture rules
+- Keep Maze skin hash/topology selection and canvas drawing in the shared skins helper; browser-client skinData reads/saves and optional top-level overrides preserve legacy geometry, while WORLD uses saved snapshots for skin undo/redo.
 
 - Keep Village building colour/age calculations and next-village transforms in the shared buildings helper; legacy defaults are render-time only so untouched exports stay lossless.
 
