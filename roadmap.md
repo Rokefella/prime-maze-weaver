@@ -14,3 +14,5 @@
 - [x] Add terrain catalogue, era chips, day/night controls and WORLD history coverage.
 - [x] Add Village terrain brush, static drawing, hover details and lossless persistence.
 - [x] Verify terrain rules and live shared-data flows; restore colour and remove only the temporary draft.
+- [ ] Add WORLD surface/underground viewing, layer-aware places and transition markers.
+- [ ] Add cached generated surface terrain overlay and verify read-only live flows and rule tests.
