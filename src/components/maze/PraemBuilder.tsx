@@ -1123,7 +1123,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
   // The separate WORLD screen reuses the existing loading path, never a second importer.
   useEffect(() => {
     onRegisterDraftOpener?.((draft) => {
-      if (manuallyEdited && !window.confirm("Open this world draft and replace unsaved builder work?")) return false;
+      if (!window.confirm("Open this world draft and replace current builder work? Unsaved changes will be lost.")) return false;
       loadFromLibrary(draft);
       return true;
     });
