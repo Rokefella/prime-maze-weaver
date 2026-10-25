@@ -10,4 +10,4 @@
 - [x] Update Ghost shared titles and optional names; verify creation, placement, and save/reload.
 - [x] Add Village path styles with live drawing and lossless persistence; verify save/reload and copies.
 - [x] Add WORLD panel for Village drafts with worldLayers (slider, painting, save/reload).
-- [ ] Add separate open-world canvas, era/area/place/link editors, measurement, and preserved Builder navigation; verify shared-data flows.
+- [x] Add separate open-world canvas, era/area/place/link editors, measurement, and preserved Builder navigation; verify shared-data loading, era save/readback, entrance drag/readback/restoration, plot readouts, route total and rule tests.
