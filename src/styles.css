@@ -179,3 +179,12 @@
  .world-side { width: 100%; height: 44%; }
  .world-map { min-height: 260px; }
 }
+:root { --terrain-unknown: #808080; --terrain-mark: #edf4ef; --terrain-outline: #222b2b; --phase-day: #b8cf86; --phase-dusk: #c68c7b; --phase-night: #273d68; --phase-dawn: #9cc5bf; --night-tint: #132d62; }
+.terrain-badge { border: 1px solid var(--border); padding: 1px 4px; font-size: 9px; color: var(--muted-foreground); border-radius: 3px; }
+.terrain-swatch { border: 1px solid var(--border); border-radius: 3px; }
+.phase-day { background: var(--phase-day); color: var(--background); }
+.phase-dusk { background: var(--phase-dusk); color: var(--background); }
+.phase-night { background: var(--phase-night); color: var(--foreground); }
+.phase-dawn { background: var(--phase-dawn); color: var(--background); }
+.phase-marker { width: 2px; background: var(--foreground); border: 1px solid var(--background); }
+@media(max-width:767px) { .world-map > div:first-of-type { max-width: calc(100% - 24px); flex-wrap: wrap; } }
