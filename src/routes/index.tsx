@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PraemBuilder } from "@/components/maze/PraemBuilder";
+import { WeaverWorkspace } from "@/components/world/WeaverWorkspace";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <PraemBuilder />;
+  return <WeaverWorkspace />;
 }
