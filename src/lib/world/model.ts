@@ -1,11 +1,12 @@
 import type { Terrain, DayNight } from './terrain';
+import type { UndergroundSettings } from './layers';
 export type Id = string | number;
-export interface Settings { day_night?:DayNight; id: number; size: number; area_size: number; plot_size: number; start_corner: string; notes: string | null }
+export interface Settings { underground?:UndergroundSettings; day_night?:DayNight; id: number; size: number; area_size: number; plot_size: number; start_corner: string; notes: string | null }
 export interface Era { id: Id; order_index: number; name: string; sigil_key: string | null; ring_from: number; ring_to: number; biome: string | null; palette: string; step_cost: number; darkness: number; description: string | null }
 export interface Area { ax: number; ay: number; era_id: Id | null; status: string; draft_name: string | null; notes: string | null }
 export const PLACE_KINDS = ['start','town','maze_entrance','echo_stone','landmark','well','rift','praem','npc_home','gate','note'] as const;
 export const LINK_KINDS = ['clue','praem','gate','passage','rift','road'] as const;
-export interface Place { id: Id; kind: string; name: string; x: number; y: number; maze_level: number | null; npc_key: string | null; status: string; notes: string | null }
+export interface Place { layer?:0|1|null; action?:string|null; target_layer?:0|1|null; target_x?:number|null; target_y?:number|null; id: Id; kind: string; name: string; x: number; y: number; maze_level: number | null; npc_key: string | null; status: string; notes: string | null }
 export interface WorldLink { id: Id; from_place: Id; to_place: Id; kind: string; requirement: string | null; note: string | null }
 export interface Sigil { drop_key: string; name?: string; icon_svg: string | null }
 export interface WorldRows { terrain:Terrain[]; settings: Settings; eras: Era[]; areas: Area[]; places: Place[]; links: WorldLink[]; sigils: Sigil[] }
