@@ -1,7 +1,11 @@
+import type { Terrain, DayNight } from './terrain';
 import type { Area, Era, Id, Place, WorldLink } from './model';
 // Session undo history for WORLD writes: each step carries before/after so undo
 // and redo can replay the write without touching unrelated rows.
 export type WorldWrite =
+ | { type:'update-terrain'; key:string; before:Terrain; after:Terrain }
+ | { type:'insert-terrain'; key:string; row:Terrain }
+ | { type:'update-day-night'; before:DayNight; after:DayNight }
  | { type: 'update-place'; id: Id; before: Place; after: Place }
  | { type: 'insert-place'; id: Id; row: Place }
  | { type: 'delete-place'; id: Id; row: Place; links: WorldLink[] }

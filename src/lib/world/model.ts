@@ -1,5 +1,6 @@
+import type { Terrain, DayNight } from './terrain';
 export type Id = string | number;
-export interface Settings { id: number; size: number; area_size: number; plot_size: number; start_corner: string; notes: string | null }
+export interface Settings { day_night?:DayNight; id: number; size: number; area_size: number; plot_size: number; start_corner: string; notes: string | null }
 export interface Era { id: Id; order_index: number; name: string; sigil_key: string | null; ring_from: number; ring_to: number; biome: string | null; palette: string; step_cost: number; darkness: number; description: string | null }
 export interface Area { ax: number; ay: number; era_id: Id | null; status: string; draft_name: string | null; notes: string | null }
 export const PLACE_KINDS = ['start','town','maze_entrance','echo_stone','landmark','well','rift','praem','npc_home','gate','note'] as const;
@@ -7,7 +8,7 @@ export const LINK_KINDS = ['clue','praem','gate','passage','rift','road'] as con
 export interface Place { id: Id; kind: string; name: string; x: number; y: number; maze_level: number | null; npc_key: string | null; status: string; notes: string | null }
 export interface WorldLink { id: Id; from_place: Id; to_place: Id; kind: string; requirement: string | null; note: string | null }
 export interface Sigil { drop_key: string; name?: string; icon_svg: string | null }
-export interface WorldRows { settings: Settings; eras: Era[]; areas: Area[]; places: Place[]; links: WorldLink[]; sigils: Sigil[] }
+export interface WorldRows { terrain:Terrain[]; settings: Settings; eras: Era[]; areas: Area[]; places: Place[]; links: WorldLink[]; sigils: Sigil[] }
 export const sameId = (a: Id | null | undefined, b: Id | null | undefined) => a != null && b != null && String(a) === String(b);
 export function plotNumber(px: number, py: number): number {
   const X = px - 125, Y = 125 - py, k = Math.max(Math.abs(X), Math.abs(Y));
