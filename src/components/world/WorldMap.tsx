@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { Minus, Plus, Scan } from 'lucide-react';
+import { Lock, LockOpen, Minus, Plus, Redo2, Scan, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { eraAt, isPrime, mazeRoute, plotNumber, sameId, type Id, type Place, type WorldRows } from '@/lib/world/model';
 
-interface Props { rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
+interface Props { rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; locked:boolean; onToggleLock:()=>void; canUndo:boolean; canRedo:boolean; undoTip:string; redoTip:string; onUndo:()=>void; onRedo:()=>void; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
 export function WorldMap(props:Props) {
  const canvasRef=useRef<HTMLCanvasElement>(null), host=useRef<HTMLDivElement>(null);
  const latest=useRef(props); latest.current=props;
  const transform=useRef(zoomIdentity), behavior=useRef<ZoomBehavior<HTMLCanvasElement,unknown>|null>(null);
  const redraw=useRef<()=>void>(()=>{}), fit=useRef<()=>void>(()=>{});
  const [hover,setHover]=useState<{x:number;y:number}|null>(null),[magnification,setMagnification]=useState(1);
- const drag=useRef<{place:Place;x:number;y:number}|null>(null);
+ const drag=useRef<{place:Place;x:number;y:number;startX:number;startY:number}|null>(null);
  useEffect(()=>{
   const canvas=canvasRef.current, container=host.current; if(!canvas||!container) return;
   const ctx=canvas.getContext('2d'); if(!ctx) return;
@@ -80,9 +80,10 @@ export function WorldMap(props:Props) {
  const zoomBy=(factor:number)=>{const canvas=canvasRef.current,z=behavior.current;if(canvas&&z)select<HTMLCanvasElement,unknown>(canvas).call(z.scaleBy,factor);};
  const era=hover?eraAt(props.rows.eras,hover.x,hover.y):undefined;const number=hover?plotNumber(Math.floor(hover.x/4),Math.floor(hover.y/4)):0;
  return <div ref={host} className="world-map relative min-h-[420px] flex-1 overflow-hidden">
-  <canvas ref={canvasRef} aria-label="Open world map" className="h-full w-full touch-none" onPointerDown={e=>{if(e.button!==0)return;down.current={x:e.clientX,y:e.clientY};const p=hit(e);if(p&&!props.addKind){drag.current={place:p,x:p.x,y:p.y};e.currentTarget.setPointerCapture(e.pointerId);}}} onPointerMove={e=>{const c=coords(e);setHover(c);if(drag.current){drag.current={...drag.current,...c};redraw.current();}}} onPointerUp={e=>{const c=coords(e),p=drag.current;const moved=down.current&&Math.hypot(e.clientX-down.current.x,e.clientY-down.current.y)>4;if(p&&moved){drag.current=null;props.onMove(p.place,c.x,c.y);}else if(!moved)props.onPick(c.x,c.y,p?.place??hit(e));drag.current=null;down.current=null;redraw.current();}} onPointerCancel={()=>{drag.current=null;down.current=null;redraw.current();}} onPointerLeave={()=>setHover(null)} />
-  <div className="absolute right-3 top-3 flex items-center gap-1 border border-border bg-background/90 p-1">
-   <Button size="icon" variant="ghost" title="Zoom in" aria-label="Zoom in" onClick={()=>zoomBy(1.4)}><Plus/></Button><Button size="icon" variant="ghost" title="Zoom out" aria-label="Zoom out" onClick={()=>zoomBy(1/1.4)}><Minus/></Button><Button size="sm" variant="ghost" onClick={()=>fit.current()}><Scan/> FIT</Button><span className="w-12 text-center text-xs tabular-nums">{magnification.toFixed(1)}×</span>
+  <canvas ref={canvasRef} aria-label="Open world map" className="h-full w-full touch-none" onPointerDown={e=>{if(e.button!==0)return;down.current={x:e.clientX,y:e.clientY};const p=hit(e);if(p&&!props.addKind&&!props.locked&&sameId(p.id,props.selectedPlace)){const c=coords(e);drag.current={place:p,x:p.x,y:p.y,startX:c.x,startY:c.y};e.currentTarget.setPointerCapture(e.pointerId);}}} onPointerMove={e=>{const c=coords(e);setHover(c);if(drag.current){drag.current={...drag.current,...c};redraw.current();}}} onPointerUp={e=>{const c=coords(e),p=drag.current;const moved=down.current&&Math.hypot(e.clientX-down.current.x,e.clientY-down.current.y)>4;if(p){const cellDistance=Math.hypot(c.x-p.startX,c.y-p.startY);if(cellDistance>=3)props.onMove(p.place,c.x,c.y);else props.onPick(c.x,c.y,p.place);}else if(!moved)props.onPick(c.x,c.y,hit(e));drag.current=null;down.current=null;redraw.current();}} onPointerCancel={()=>{drag.current=null;down.current=null;redraw.current();}} onPointerLeave={()=>setHover(null)} />
+   <div className="absolute right-3 top-3 flex items-center gap-1 border border-border bg-background/90 p-1">
+    <Button size="sm" variant="ghost" disabled={!props.canUndo} title={props.undoTip} aria-label={props.undoTip} onClick={props.onUndo}><Undo2/> UNDO</Button><Button size="sm" variant="ghost" disabled={!props.canRedo} title={props.redoTip} aria-label={props.redoTip} onClick={props.onRedo}><Redo2/> REDO</Button><Button size="sm" variant={props.locked?'secondary':'ghost'} title={props.locked?'Places locked: dragging pans the map':'Places unlocked: drag a selected place to move it'} aria-pressed={props.locked} onClick={props.onToggleLock}>{props.locked?<Lock/>:<LockOpen/>} LOCK PLACES</Button>
+    <Button size="icon" variant="ghost" title="Zoom in" aria-label="Zoom in" onClick={()=>zoomBy(1.4)}><Plus/></Button><Button size="icon" variant="ghost" title="Zoom out" aria-label="Zoom out" onClick={()=>zoomBy(1/1.4)}><Minus/></Button><Button size="sm" variant="ghost" onClick={()=>fit.current()}><Scan/> FIT</Button><span className="w-12 text-center text-xs tabular-nums">{magnification.toFixed(1)}×</span>
   </div>
   <div className="pointer-events-none absolute bottom-3 left-3 border border-border bg-background/90 px-3 py-2 text-[11px] tabular-nums" aria-live="off">{hover?<>Cell {hover.x},{hover.y} · Area {Math.floor(hover.x/50)},{Math.floor(hover.y/50)} · {era?.name??'No era'}<br/>Plot {number} · {isPrime(number)?'Prime':'Not prime'}</>:'1000 × 1000 · 20 × 20 areas'}</div>
  </div>;
