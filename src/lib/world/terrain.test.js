@@ -1,0 +1,24 @@
+import { describe,it,expect } from 'bun:test';
+import { terrainCell,filterTerrain,cyclePhase,phaseTotal,snakeKey } from './terrain';
+import { exportLevel,importLevel } from '../maze/storage';
+import { buildUlamData } from '../maze/ulam';
+import { paintLayerCell,worldAtLevel } from '../maze/worldLayers';
+import { writeLabel } from './history';
+const sand={key:'packed_sand',name:'Packed sand',grp:'ground',sort:1,build_set:'1',walkable:true,steps:1,eras:['Fire'],enabled:true,exists_as:null};
+const tree={...sand,key:'tree',name:'Tree',grp:'plant',exists_as:'TREE'};
+const cycle={cycle_minutes:17,day:10,dusk:1,night:5,dawn:1,night_view_delta:-2,applies_to:['open_world','towns'],moon_cycle_days:29.53,full_moon_rare_bonus:.1};
+describe('Terrain rules',()=>{
+ it('packed_sand paints TERRAIN with its key',()=>expect(terrainCell(sand)).toEqual({type:'TERRAIN',terrain:'packed_sand'}));
+ it('tree paints existing TREE without a terrain field',()=>expect(terrainCell(tree)).toEqual({type:'TREE'}));
+ it('building equivalents paint BUILDING_S',()=>expect(terrainCell({...sand,exists_as:'BUILDING_S, BUILDING_M, BUILDING_L'})).toEqual({type:'BUILDING_S'}));
+ it('disabled terrain is absent from brushes',()=>expect(filterTerrain([sand,{...tree,enabled:false}],{enabledOnly:true}).map(t=>t.key)).toEqual(['packed_sand']));
+ it('Fire filter uses catalogue era names',()=>expect(filterTerrain([sand,{...tree,eras:['Gods']}],{era:'Fire'}).map(t=>t.key)).toEqual(['packed_sand']));
+ it('all requested filters combine',()=>expect(filterTerrain([sand,tree],{group:'ground',set:'1',era:'Fire',walkable:'yes',search:'packed'}).map(t=>t.key)).toEqual(['packed_sand']));
+ it('terrain key round trips through extraCells, leaving other fields unchanged',()=>{const cells=[terrainCell(sand),terrainCell(tree),{type:'OPEN'},{type:'WALL'}];const meta={mode:'village',levelNumber:1,levelName:'Test',requiredFragments:0,notes:''};const data=exportLevel(cells,buildUlamData(2),meta);expect(data.extraCells[0]).toEqual({col:0,row:0,type:'TERRAIN',terrain:'packed_sand'});expect(importLevel(data).cells).toEqual(cells);});
+ it('terrain painting retains earlier Village layers',()=>{const layers=[{col:0,row:0,type:'OPEN',from:1}];const painted=paintLayerCell(layers,0,0,terrainCell(sand),5);expect(worldAtLevel(painted,1,4)[0]).toEqual({type:'OPEN'});expect(worldAtLevel(painted,1,5)[0]).toEqual({type:'TERRAIN',terrain:'packed_sand'});});
+ it('17-minute cycle is day 10, dusk 1, night 5, dawn 1',()=>{expect(phaseTotal(cycle)).toBe(17);for(const [minutes,phase] of [[0,'day'],[10,'dusk'],[11,'night'],[16,'dawn'],[17,'day']])expect(cyclePhase(cycle,minutes*60000).phase).toBe(phase);});
+ it('UTC phase uses fractional unix minutes modulo 17',()=>expect(cyclePhase(cycle,27.5*60000)).toEqual({phase:'dusk',position:10.5,fraction:10.5/17}));
+ it('reports cycle mismatch numerically',()=>expect(phaseTotal({...cycle,night:4})).not.toBe(17));
+ it('normalizes unique-key input to snake case',()=>expect(snakeKey(' Packed Sand! ')).toBe('packed_sand'));
+ it('labels all terrain and day/night history writes',()=>{expect(writeLabel({type:'update-terrain',key:sand.key,before:sand,after:sand})).toBe('terrain Packed sand');expect(writeLabel({type:'insert-terrain',key:sand.key,row:sand})).toBe('create terrain Packed sand');expect(writeLabel({type:'update-day-night',before:cycle,after:cycle})).toBe('day and night');});
+});

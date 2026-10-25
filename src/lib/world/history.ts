@@ -21,6 +21,9 @@ export function pushStep(stack: WorldWrite[], step: WorldWrite, cap = HISTORY_CA
 const placeName = (p: Place) => p.name || p.kind;
 export function writeLabel(w: WorldWrite): string {
  switch (w.type) {
+  case 'update-terrain': return `terrain ${w.after.name}`;
+  case 'insert-terrain': return `create terrain ${w.row.name}`;
+  case 'update-day-night': return 'day and night';
   case 'update-place': return `${w.before.x !== w.after.x || w.before.y !== w.after.y ? 'move' : 'edit'} ${placeName(w.after)}`;
   case 'insert-place': return `create ${placeName(w.row)}`;
   case 'delete-place': return `delete ${placeName(w.row)}`;
