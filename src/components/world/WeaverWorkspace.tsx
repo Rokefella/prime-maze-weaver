@@ -15,6 +15,6 @@ export function WeaverWorkspace() {
    <nav className="flex gap-1" aria-label="Workspace"><Button size="sm" variant={active==='builder'?'secondary':'ghost'} aria-pressed={active==='builder'} onClick={()=>setActive('builder')}><Hammer/> BUILDER</Button><Button size="sm" variant={active==='world'?'secondary':'ghost'} aria-pressed={active==='world'} onClick={()=>{setOpened(true);setActive('world');}}><Globe2/> WORLD</Button></nav>
   </header>
   <div className="weaver-content" hidden={active!=='builder'}><PraemBuilder onRegisterDraftOpener={register}/></div>
-  {opened&&<div className="weaver-content" hidden={active!=='world'}><WorldWorkspace onOpenDraft={openDraft}/></div>}
+  {opened&&<div className="weaver-content" hidden={active!=='world'}><WorldWorkspace onOpenDraft={openDraft} active={active==='world'}/></div>}
  </div>;
 }
