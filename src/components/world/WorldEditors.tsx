@@ -23,6 +23,7 @@ export function EraEditor({rows,onChange,onSave,busy,onTerrain}:{onTerrain:(key:
   <div className="grid grid-cols-2 gap-2"><Field label="Step cost"><Input type="number" min={0} step="0.1" value={e.step_cost} onChange={v=>onChange({...e,step_cost:Number(v)})}/></Field><Field label="Darkness"><Input type="number" min={0} step="1" value={e.darkness} onChange={v=>onChange({...e,darkness:Number(v)})}/></Field></div>
   <Field label="Description">{notes(e.description,description=>onChange({...e,description}))}</Field>
   <Button variant="outline" size="sm" disabled={busy} onClick={()=>onSave(e)}><Save/> Save era</Button>
+  <div className="mt-3 flex flex-wrap gap-1" aria-label={`${e.name} terrain types`}>{rows.terrain.filter(t=>t.enabled&&t.eras?.includes(e.name)).sort((a,b)=>a.sort-b.sort).map(t=><Button key={t.key} size="sm" variant="ghost" className="h-auto gap-1 px-1 py-1 text-[9px]" onClick={()=>onTerrain(t.key)} title={t.name}><TerrainSwatch terrain={t} size={12}/>{t.name}</Button>)}</div>
  </article>;})}</>;
 }
 export function AreaEditor({area,rows,onChange,onSave,onOpen,onCreate,busy}:{area:Area|null;rows:WorldRows;onChange:(a:Area)=>void;onSave:(a:Area)=>void;onOpen:()=>void;onCreate:()=>void;busy:boolean}) {
