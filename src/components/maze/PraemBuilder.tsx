@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { loadMazeSkins,loadLevelSkin } from '@/lib/maze/skinData';
+import type { MazeSkin,LevelSkin } from '@/lib/maze/skins';
 import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
@@ -351,6 +353,10 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
   const [showNumbers, setShowNumbers] = useState(false);
   const [showPrimeLabels, setShowPrimeLabels] = useState(false);
   const [meta, setMeta] = useState<LevelMeta>(defaultMeta);
+  const [skinPreview,setSkinPreview]=useState(false);
+  const [mazeSkins,setMazeSkins]=useState<MazeSkin[]>([]);
+  const [levelSkin,setLevelSkin]=useState<LevelSkin|null>(null);
+  const [skinError,setSkinError]=useState('');
   const [deadEnds, setDeadEnds] = useState(50);
   const [branching, setBranching] = useState(50);
   const [numFragments, setNumFragments] = useState(5);
@@ -417,6 +423,9 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
 
   const mode = meta.mode ?? "maze";
   useEffect(()=>{if(mode!=='village')return;let active=true;setTerrainEra(null);setTerrainError('');Promise.all([loadTerrain(),areaTerrainEra(meta.levelName)]).then(([types,era])=>{if(active){setTerrainRows(types);setTerrainEra(era);}}).catch(e=>{if(active)setTerrainError(String(e.message??e));});return()=>{active=false;};},[mode,meta.levelName]);
+  useEffect(()=>{if(mode!=='maze')return;let active=true;setLevelSkin(null);setSkinError('');Promise.all([loadMazeSkins(),loadLevelSkin(meta.levelNumber),loadTerrain()]).then(([skins,level,terrain])=>{if(active){setMazeSkins(skins);setLevelSkin(level);setTerrainRows(terrain);}}).catch(e=>{if(active)setSkinError(e.message??String(e));});return()=>{active=false;};},[mode,meta.levelNumber]);
+  useEffect(()=>{if(mode!=='maze')return;const refresh=()=>{void Promise.all([loadMazeSkins(),loadLevelSkin(meta.levelNumber)]).then(([skins,level])=>{setMazeSkins(skins);setLevelSkin(level);}).catch(e=>setSkinError(e.message??String(e)));};window.addEventListener('praem-maze-skins-changed',refresh);return()=>window.removeEventListener('praem-maze-skins-changed',refresh);},[mode,meta.levelNumber]);
+  const selectedSkin=meta.skin!==undefined?mazeSkins.find(s=>s.era_order===meta.skin):levelSkin?.skin;
   const tools = useMemo(() => toolsForMode(mode), [mode]);
   const fragmentEntries = useMemo(() => draftFragments(cells, ulam), [cells, ulam]);
 
@@ -1378,6 +1387,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
         <GridCanvas
           ref={gridRef}
           terrainTypes={terrainRows}
+          mazeSkin={mode==='maze'&&skinPreview&&selectedSkin?.enabled?selectedSkin:null}
           ulam={ulam}
           cells={cells}
           showNumbers={showNumbers}
@@ -1399,6 +1409,13 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
               : null
           }
         />
+        {mode === 'maze' && <div className="absolute left-3 right-3 top-14 flex flex-wrap items-center gap-2 rounded border border-border bg-card/90 p-2 text-xs">
+          <Button size="sm" variant={skinPreview?'secondary':'ghost'} aria-pressed={skinPreview} title="Preview Maze skin" onClick={()=>setSkinPreview(v=>!v)}>SKIN</Button>
+          <span className="min-w-0 flex-1 break-words text-muted-foreground">Level {meta.levelNumber} · {levelSkin?.place_name??'No place'} · {levelSkin?.era_name??'No era'}</span>
+          <select aria-label="Skin override" className="max-w-full rounded border border-input bg-background p-1 text-foreground" value={meta.skin??''} onChange={e=>{const value=e.target.value;setMeta(m=>{const next={...m};if(value==='')delete next.skin;else next.skin=Number(value);return next;});setManuallyEdited(true);}}><option value="">Auto</option>{mazeSkins.map(s=><option value={s.era_order} key={s.era_order}>{s.era_order} · {s.name}{!s.enabled?' (disabled)':''}</option>)}</select>
+          {skinError&&<span role="alert" className="w-full text-destructive">{skinError}</span>}
+          {skinPreview&&!skinError&&(!selectedSkin||!selectedSkin.enabled)&&<span className="w-full text-muted-foreground">{selectedSkin?'Skin disabled':'No skin for this level'}</span>}
+        </div>}
         {/* Dimension preview toggle (maze mode only) */}
         {mode === "maze" && (
         <div className="absolute left-1/2 top-3 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 text-[10px] uppercase tracking-widest backdrop-blur">
