@@ -1,0 +1,22 @@
+import { describe,it,expect } from 'bun:test';
+import {skinHash,skinCell,SKIN_SAMPLE,SKIN_SAMPLE_ROWS} from './skins';
+import {exportLevel,importLevel} from './storage';
+import {buildUlamData} from './ulam';
+import {writeLabel} from '../world/history';
+const skin={era_order:1,name:'Fire',wall_keys:['w0','w1','w2'],floor_keys:['f0','f1','f2'],edge:[],junction_key:null,straight_key:null,darkness:2,accent:'#f5c060',enabled:true,notes:''};
+const blank=(n=15)=>Array.from({length:n*n},()=>({type:'CORRIDOR'}));
+const find=(predicate)=>{for(let y=1;y<14;y++)for(let x=1;x<14;x++)if(predicate(x,y))return [x,y];throw Error('No test coordinate');};
+describe('Maze game skin rules',()=>{
+ it('hash uses the exact unsigned imul constants',()=>{expect(skinHash(0,0,5)).toBe(0.9270416311919689);expect(skinHash(3,7,17)).toBe(0.35297417966648936);expect(skinHash(12,9,4)).toBe(0.9880932432133704);});
+ it('walls use salt 5 threshold .25 and 3-cell salt 3 patches',()=>{const cells=Array.from({length:225},()=>({type:'WALL'}));for(let y=0;y<15;y++)for(let x=0;x<15;x++)expect(skinCell(cells,15,x,y,skin).key).toBe(skinHash(x,y,5)<.25?skin.wall_keys[Math.floor(skinHash(Math.floor(x/3),Math.floor(y/3),3)*3)]:'w0');});
+ it('floors use salt 6 threshold .35 and 2-cell salt 4 patches',()=>{const cells=blank();for(let y=0;y<15;y++)for(let x=0;x<15;x++)expect(skinCell(cells,15,x,y,skin).key).toBe(skinHash(Math.floor(x/2),Math.floor(y/2),6)<.35?skin.floor_keys[Math.floor(skinHash(Math.floor(x/2),Math.floor(y/2),4)*3)]:'f0');});
+ it('straight override needs exactly two opposite open neighbours and salt 8 < .35',()=>{const [x,y]=find((x,y)=>skinHash(Math.floor(x/4),Math.floor(y/4),8)<.35),cells=blank();cells[(y-1)*15+x]={type:'WALL'};cells[(y+1)*15+x]={type:'WALL'};expect(skinCell(cells,15,x,y,{...skin,straight_key:'straight'}).key).toBe('straight');cells[y*15+x-1]={type:'WALL'};expect(skinCell(cells,15,x,y,{...skin,straight_key:'straight'}).key).not.toBe('straight');});
+ it('a corner with two neighbours is not straight',()=>{const [x,y]=find((x,y)=>skinHash(Math.floor(x/4),Math.floor(y/4),8)<.35),cells=blank();cells[(y-1)*15+x]={type:'WALL'};cells[y*15+x-1]={type:'WALL'};expect(skinCell(cells,15,x,y,{...skin,straight_key:'straight'}).key).not.toBe('straight');});
+ it('edge uses first passing ordered salt 17+i chance only beside a wall',()=>{const cells=blank(),s={...skin,edge:[{key:'never',p:0},{key:'first',p:1},{key:'second',p:1}]};expect(skinCell(cells,15,7,7,s).edge).toBeUndefined();cells[7*15+6]={type:'WALL'};expect(skinCell(cells,15,7,7,s).edge).toBe('first');});
+ it('junction needs at least 3 open neighbours and salt 13 < .5',()=>{const [x,y]=find((x,y)=>skinHash(x,y,13)<.5),cells=blank(),s={...skin,junction_key:'j'};expect(skinCell(cells,15,x,y,s).junction).toBe('j');cells[(y-1)*15+x]={type:'WALL'};expect(skinCell(cells,15,x,y,s).junction).toBe('j');cells[(y+1)*15+x]={type:'WALL'};expect(skinCell(cells,15,x,y,s).junction).toBeUndefined();});
+ it('existing marks remain open neighbours for topology',()=>{const [x,y]=find((x,y)=>skinHash(x,y,13)<.5),cells=blank();for(const [i,type] of [[(y-1)*15+x,'FRAGMENT'],[(y+1)*15+x,'CONSOLE_DOOR'],[y*15+x-1,'DROP'],[y*15+x+1,'START']])cells[i]={type};expect(skinCell(cells,15,x,y,{...skin,junction_key:'j'}).junction).toBe('j');});
+ it('fixed sample is 15 by 11',()=>{expect(SKIN_SAMPLE.length).toBe(165);expect(SKIN_SAMPLE_ROWS.every(r=>r.length===15)).toBe(true);});
+ it('override saves and reloads as optional top-level skin with unchanged geometry',()=>{const cells=blank(2),ulam=buildUlamData(2),meta={mode:'maze',levelNumber:1,levelName:'test',requiredFragments:0,notes:''};const legacy=exportLevel(cells,ulam,meta),override=exportLevel(cells,ulam,{...meta,skin:8});expect(override).toEqual({...legacy,skin:8});expect(importLevel(override).meta.skin).toBe(8);expect(legacy).not.toHaveProperty('skin');expect(importLevel(legacy).meta).not.toHaveProperty('skin');});
+ it('non-Maze exports do not emit skin',()=>{expect(exportLevel(blank(2),buildUlamData(2),{mode:'village',levelNumber:0,levelName:'village',requiredFragments:0,notes:'',skin:1})).not.toHaveProperty('skin');});
+ it('skin history labels name the skin',()=>{expect(writeLabel({type:'update-maze-skin',order:1,before:skin,after:skin})).toBe('maze skin Fire');});
+});
