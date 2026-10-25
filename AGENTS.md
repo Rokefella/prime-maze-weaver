@@ -13,3 +13,6 @@
 - Keep shared Ghost title reads/creation in ghostTitles and optional-field normalization in spawnGhost; Ghost names must not be imported as NPC identity.
 - Share Village street SVG assets between PathStylePicker and canvas patterns; keep streetStyle optional so legacy defaults remain render-only and metadata copies preserve explicit choices.
 - Keep Village world-layer timeline logic (active entry, painting splits, window/era reads) in the shared worldLayers helper; cells stay the current-level view and extraCells remains the saved preview so legacy drafts and readers are unchanged.
+- Keep the standalone WORLD workspace in components/world and lib/world, using only the existing browser client for external world tables; never provision schema or seed data because the authoritative tables live outside this workspace.
+- Keep Builder mounted across workspace switching and open WORLD area drafts through its existing importer with an unsaved-work confirmation, so navigation preserves editor state and formats.
+- Keep open-world plot numbering, ring membership, route ordering and measurement in the pure world model, and use d3-zoom for canvas navigation so all readouts and overlays share geometry and touch behavior.

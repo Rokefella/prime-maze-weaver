@@ -330,7 +330,7 @@ function generateShadowRealm(opts: {
   return cells;
 }
 
-export function PraemBuilder() {
+export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?: (open: (draft: SavedLevel) => boolean) => void }) {
   const [size, setSize] = useState(30);
   const ulam = useMemo(() => buildUlamData(size), [size]);
   const [cells, setCellsRaw] = useState<CellState[]>(() => makeBlankCells(30));
@@ -1119,6 +1119,15 @@ export function PraemBuilder() {
     setCurrentId(sl.id);
     setStatus((sl.status as LevelStatus) ?? "draft");
   };
+
+  // The separate WORLD screen reuses the existing loading path, never a second importer.
+  useEffect(() => {
+    onRegisterDraftOpener?.((draft) => {
+      if (!window.confirm("Open this world draft and replace current builder work? Unsaved changes will be lost.")) return false;
+      loadFromLibrary(draft);
+      return true;
+    });
+  });
 
   // Detach the current editor state from its saved row so the next save
   // creates a brand new level. Requires a fresh level number.

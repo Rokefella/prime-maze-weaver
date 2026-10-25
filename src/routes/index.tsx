@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PraemBuilder } from "@/components/maze/PraemBuilder";
+import { WeaverWorkspace } from "@/components/world/WeaverWorkspace";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "PRÆM Instrument Builder" },
-      { name: "description", content: "Design Ulam-spiral maze levels with prime-cell fragments and export them as JSON." },
+      { name: "description", content: "Weave PRÆM mazes, villages and rooms, and design the open world's eras, areas, places and links." },
       { property: "og:title", content: "PRÆM Instrument Builder" },
-      { property: "og:description", content: "Design Ulam-spiral maze levels with prime-cell fragments and export them as JSON." },
+      { property: "og:description", content: "Weave PRÆM mazes, villages and rooms, and design the open world's eras, areas, places and links." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -16,5 +16,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <PraemBuilder />;
+  return <WeaverWorkspace />;
 }
