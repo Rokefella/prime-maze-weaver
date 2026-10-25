@@ -249,6 +249,7 @@ export function exportLevel(
     levelNumber: meta.levelNumber,
     levelName: meta.levelName,
     gridSize: size,
+    ...(meta.mode === 'maze' && meta.skin !== undefined ? { skin: meta.skin } : {}),
     ...(world ? { world: world.world, worldLayers: world.worldLayers } : {}),
     ...(meta.mode === "village" && meta.streetStyle ? { streetStyle: meta.streetStyle } : {}),
     ...(meta.season && meta.season.trim() ? { season: meta.season } : {}),
@@ -324,6 +325,7 @@ export function importLevel(data: ExportedLevel): {
     size,
     meta: {
       mode: data.mode ?? "maze",
+      ...(data.skin !== undefined ? { skin: data.skin } : {}),
       ...(data.mode === "village" && data.streetStyle ? { streetStyle: data.streetStyle } : {}),
       levelNumber: data.levelNumber,
       levelName: data.levelName,
