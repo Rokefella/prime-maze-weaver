@@ -19,3 +19,4 @@
 - Keep WORLD session undo/redo step types and labels in the pure history helper; WorldWorkspace replays steps through the existing data helpers with last-saved snapshots and id remapping, so re-inserts never rewrite history.
 - Keep terrain catalogue models, filters, tile-equivalence mapping and UTC cycle calculations in lib/world/terrain; use terrainData exclusively with the shared browser client and serialize optional terrain keys through the shared extra-cell converters, preserving layered and legacy drafts.
 - Terrain creation undo disables the row rather than deleting catalogue data; WORLD history replays terrain and day/night through their existing shared-table helpers.
+- Keep WORLD layer coordinate projection, transition targets and window tiling/cache in lib/world/layers; map inputs return stored layer-cell coordinates and read-only terrain windows use bounded shared-client requests, so saved place snapshots and Builder formats remain unchanged.

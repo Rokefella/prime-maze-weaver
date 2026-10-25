@@ -4,8 +4,22 @@ import { buildUlamData } from '@/lib/maze/ulam';
 import type { SavedLevel } from '@/lib/maze/types';
 import { loadTerrain } from './terrainData';
 import type { Area, WorldRows } from './model';
+import type { UnderRow, TerrainWindow, WindowTile } from './layers';
 // Existing external tables intentionally use the project's loose table typing.
 const table = (name: string) => supabase.from(name as never);
+export async function loadUnderground():Promise<UnderRow[]> {
+ const {data,error}=await table('world_under_rows').select('y,row').order('y');if(error)throw error;
+ const rows=(data??[]) as unknown as UnderRow[];
+ if(rows.length!==250||rows.some((r,i)=>r.y!==i||r.row.length!==250))throw new Error('Underground requires 250 rows of 250 cells.');
+ return rows;
+}
+export async function loadTerrainWindow(tile:WindowTile):Promise<TerrainWindow> {
+ const {data,error}=await supabase.rpc('world_window' as never,{p_x0:tile.x0,p_y0:tile.y0,p_w:tile.w,p_h:tile.h} as never);
+ if(error)throw new Error(error.code==='57014'?'Generated terrain timed out in the shared database. Retry or view another area.':error.message);
+ const window=data as unknown as TerrainWindow;
+ if(!window||window.w!==tile.w||window.h!==tile.h||window.x0!==tile.x0||window.y0!==tile.y0||!Array.isArray(window.keys)||!Array.isArray(window.rows)||window.rows.length!==window.h||window.rows.some(row=>!Array.isArray(row)||row.length!==window.w))throw new Error('Invalid generated terrain window.');
+ return window;
+}
 export async function loadWorld(): Promise<WorldRows> {
  const names=['world_settings','world_eras','world_areas','world_places','world_links','drop_types'];
  const results=await Promise.all(names.map(name=> name==='drop_types' ? table(name).select('*').eq('category','sigil') : table(name).select('*')));
