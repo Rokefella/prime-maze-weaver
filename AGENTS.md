@@ -17,3 +17,5 @@
 - Keep Builder mounted across workspace switching and open WORLD area drafts through its existing importer with an unsaved-work confirmation, so navigation preserves editor state and formats.
 - Keep open-world plot numbering, ring membership, route ordering and measurement in the pure world model, and use d3-zoom for canvas navigation so all readouts and overlays share geometry and touch behavior.
 - Keep WORLD session undo/redo step types and labels in the pure history helper; WorldWorkspace replays steps through the existing data helpers with last-saved snapshots and id remapping, so re-inserts never rewrite history.
+- Keep terrain catalogue models, filters, tile-equivalence mapping and UTC cycle calculations in lib/world/terrain; use terrainData exclusively with the shared browser client and serialize optional terrain keys through the shared extra-cell converters, preserving layered and legacy drafts.
+- Terrain creation undo disables the row rather than deleting catalogue data; WORLD history replays terrain and day/night through their existing shared-table helpers.

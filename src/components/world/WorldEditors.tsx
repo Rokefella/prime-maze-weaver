@@ -1,3 +1,4 @@
+import { TerrainSwatch } from './TerrainSwatch';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Trash2, Plus, ExternalLink } from 'lucide-react';
@@ -10,7 +11,7 @@ const words=(s:string)=>s.replaceAll('_',' ');
 const options=(items:readonly string[])=>items.map(value=>({value,label:words(value)}));
 const nullableNumber=(v:string)=>v===''?null:Number(v);
 const notes=(value:string|null,onChange:(v:string)=>void)=><textarea className="world-input min-h-20" value={value??''} onChange={e=>onChange(e.target.value)}/>;
-export function EraEditor({rows,onChange,onSave,busy}:{rows:WorldRows;onChange:(e:Era)=>void;onSave:(e:Era)=>void;busy:boolean}) {
+export function EraEditor({rows,onChange,onSave,busy,onTerrain}:{onTerrain:(key:string)=>void;rows:WorldRows;onChange:(e:Era)=>void;onSave:(e:Era)=>void;busy:boolean}) {
  const warnings=ringWarnings(rows.eras);
  return <>{warnings.length>0&&<p className="world-warning" role="status">{warnings.join(' · ')}</p>}{rows.eras.map(e=>{const sigil=rows.sigils.find(s=>s.drop_key===e.sigil_key);return <article className="mb-3 rounded border border-border bg-card/30 p-3" key={e.id}>
   <div className="mb-3 flex items-center gap-3">{sigil?.icon_svg&&<img className="h-8 w-8" alt={e.sigil_key??'Sigil'} src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sigil.icon_svg)}`}/>}<span className="text-xs text-muted-foreground">{String(e.order_index).padStart(2,'0')}</span><h3 className="font-display text-sm">{e.name}</h3></div>

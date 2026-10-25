@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
+import type { Terrain } from '@/lib/world/terrain';
 import type { BuilderMode, CellState, StreetStyle } from "@/lib/maze/types";
 import { isVillageStreet, STREET_STYLES } from "@/lib/maze/streetStyles";
 import type { UlamData } from "@/lib/maze/ulam";
@@ -21,6 +22,7 @@ export interface GridCanvasHandle {
 }
 
 interface Props {
+  terrainTypes?:Terrain[];
   ulam: UlamData;
   cells: CellState[];
   showNumbers: boolean;
@@ -48,7 +50,7 @@ const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
 
 export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanvas(
-  { ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
+  { terrainTypes = [], ulam, cells, showNumbers, showPrimeLabels = false, highlight, onCellClick, onCellHover, rotation = 0, readOnly = false, routeA = null, routeB = null, routePath = null, mode = "maze", rectPreview = null, villageBuildings = false, streetStyle, showSpawnRadius = false, worldWindowSide = null, newCellIndices = null },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -185,6 +187,9 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, viewport.w, viewport.h);
 
+    const css=getComputedStyle(canvas);
+    const terrainColors={unknown:css.getPropertyValue('--terrain-unknown').trim(),mark:css.getPropertyValue('--terrain-mark').trim(),outline:css.getPropertyValue('--terrain-outline').trim()};
+    const terrainMap=new Map(terrainTypes.map(t=>[t.key,t]));
     const cellPx = BASE_CELL * scale;
     const streetPattern = streetImage && villageBuildings ? ctx.createPattern(streetImage, "repeat") : null;
     streetPattern?.setTransform(new DOMMatrix().translate(offset.x, offset.y).scale(scale));
@@ -207,6 +212,13 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
         const w = Math.ceil(cellPx);
         const h = Math.ceil(cellPx);
 
+        if(cell.type==='TERRAIN'){
+          const terrain=terrainMap.get(cell.terrain??'');ctx.fillStyle=terrain?.color||terrainColors.unknown;ctx.fillRect(x,y,w,h);
+          ctx.strokeStyle=terrainColors.mark;ctx.fillStyle=terrainColors.mark;ctx.lineWidth=1;const cx=x+w/2,cy=y+h/2,d=cellPx*.2;
+          if(!terrain&&cellPx>=6){ctx.font=`${Math.max(6,Math.floor(cellPx*.55))}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',cx,cy);}
+          else if(terrain&&cellPx>=5){ctx.beginPath();switch(terrain.grp){case 'water':for(const dy of [-d,d]){ctx.moveTo(cx-d,cy+dy);ctx.quadraticCurveTo(cx,cy+dy-d,cx+d,cy+dy);}ctx.stroke();break;case 'plant':ctx.arc(cx,cy,d*.6,0,Math.PI*2);ctx.fill();break;case 'rock':ctx.moveTo(cx,cy-d);ctx.lineTo(cx+d,cy+d);ctx.lineTo(cx-d,cy+d);ctx.closePath();ctx.stroke();break;case 'structure':ctx.strokeRect(cx-d,cy-d,d*2,d*2);break;case 'edge':for(const dx of [-d,0,d]){ctx.moveTo(cx+dx-d/2,cy+d);ctx.lineTo(cx+dx+d/2,cy-d);}ctx.stroke();break;case 'hazard':ctx.moveTo(cx-d,cy-d);ctx.lineTo(cx+d,cy+d);ctx.moveTo(cx+d,cy-d);ctx.lineTo(cx-d,cy+d);ctx.stroke();break;}}
+          if(terrain?.walkable===false){ctx.strokeStyle=terrainColors.outline;ctx.lineWidth=Math.max(1,cellPx*.08);ctx.strokeRect(x+1,y+1,w-2,h-2);}continue;
+        }
         let fill = PALETTE.corridor;
         if (streetPattern && isVillageStreet(cell.type)) {
           ctx.fillStyle = bg;
@@ -788,7 +800,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
       const hCells = Math.abs(dB.row - dA.row) + 1;
       ctx.strokeRect(offset.x + x0 * cellPx, offset.y + y0 * cellPx, wCells * cellPx, hCells * cellPx);
     }
-  }, [cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, streetImage, showSpawnRadius]);
+  }, [terrainTypes,cells, ulam, scale, offset, viewport, showNumbers, showPrimeLabels, hover, highlight, tick, size, rotation, routeA, routeB, routePath, mode, rectPreview, villageBuildings, streetImage, showSpawnRadius]);
 
   // Mouse events
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number; moved: boolean; button: number } | null>(null);
@@ -889,6 +901,7 @@ export const GridCanvas = forwardRef<GridCanvasHandle, Props>(function GridCanva
             const i = canon.row * size + canon.col;
             return (
               <>
+                {cells[i]?.type==='TERRAIN'&&<span className="block text-foreground">{terrainTypes.find(t=>t.key===cells[i].terrain)?.name??`Unknown terrain ${cells[i].terrain??'?'}`} · {(()=>{const t=terrainTypes.find(t=>t.key===cells[i].terrain);return t?(t.walkable?(t.steps??'as grounds'):'no'):'?';})()} steps</span>}
                 <span className="text-foreground">#{ulam.numbers[i]}</span>
                 {ulam.isPrime[i] ? (
                   <span className="ml-2 text-[color:var(--accent-gold)]">prime</span>

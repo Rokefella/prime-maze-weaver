@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { select } from 'd3-selection';
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { Lock, LockOpen, Minus, Plus, Redo2, Scan, Undo2 } from 'lucide-react';
+import { Moon, Lock, LockOpen, Minus, Plus, Redo2, Scan, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { eraAt, isPrime, mazeRoute, plotNumber, sameId, type Id, type Place, type WorldRows } from '@/lib/world/model';
 
-interface Props { rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; locked:boolean; onToggleLock:()=>void; canUndo:boolean; canRedo:boolean; undoTip:string; redoTip:string; onUndo:()=>void; onRedo:()=>void; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
+interface Props { night:boolean; onToggleNight:()=>void; rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; locked:boolean; onToggleLock:()=>void; canUndo:boolean; canRedo:boolean; undoTip:string; redoTip:string; onUndo:()=>void; onRedo:()=>void; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
 export function WorldMap(props:Props) {
  const canvasRef=useRef<HTMLCanvasElement>(null), host=useRef<HTMLDivElement>(null);
  const latest=useRef(props); latest.current=props;
@@ -18,7 +18,7 @@ export function WorldMap(props:Props) {
   const ctx=canvas.getContext('2d'); if(!ctx) return;
   let width=0,height=0,base=1,frame=0;
   const css=getComputedStyle(container);
-  const colors={background:css.getPropertyValue('--world-map-bg').trim(), grid:css.getPropertyValue('--world-map-grid').trim(), text:css.getPropertyValue('--world-map-text').trim(), gold:css.getPropertyValue('--world-gold').trim(), cyan:css.getPropertyValue('--world-cyan').trim(), teal:css.getPropertyValue('--world-teal').trim(), grey:css.getPropertyValue('--world-empty').trim(), blue:css.getPropertyValue('--world-proposed').trim(), purple:css.getPropertyValue('--world-generated').trim(), amber:css.getPropertyValue('--world-edited').trim(), green:css.getPropertyValue('--world-final').trim(), well:css.getPropertyValue('--world-well').trim()};
+  const colors={background:css.getPropertyValue('--world-map-bg').trim(), grid:css.getPropertyValue('--world-map-grid').trim(), text:css.getPropertyValue('--world-map-text').trim(), gold:css.getPropertyValue('--world-gold').trim(), cyan:css.getPropertyValue('--world-cyan').trim(), teal:css.getPropertyValue('--world-teal').trim(), grey:css.getPropertyValue('--world-empty').trim(), blue:css.getPropertyValue('--world-proposed').trim(), purple:css.getPropertyValue('--world-generated').trim(), amber:css.getPropertyValue('--world-edited').trim(), green:css.getPropertyValue('--world-final').trim(), night:css.getPropertyValue('--night-tint').trim(), well:css.getPropertyValue('--world-well').trim()};
   const statusColors:Record<string,string>={empty:colors.grey,proposed:colors.blue,generated:colors.purple,edited:colors.amber,final:colors.green};
   const linkColors:Record<string,string>={clue:colors.gold,praem:colors.text,gate:colors.purple,passage:colors.grey,rift:colors.teal,road:colors.green};
   const visible=(x:number,y:number,pad=20)=>x>=-pad&&y>=-pad&&x<=width+pad&&y<=height+pad;
@@ -61,6 +61,7 @@ export function WorldMap(props:Props) {
     if(t.k/base>=2){ctx.fillStyle=colors.text;ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText(p.name||p.kind,0,25);}
     ctx.restore();
    }
+   if(latest.current.night){ctx.globalAlpha=.42;ctx.fillStyle=colors.night;ctx.fillRect(t.x,t.y,rows.settings.size*scale,rows.settings.size*scale);ctx.globalAlpha=1;}
    ctx.restore();
   };
   redraw.current=()=>{if(!frame)frame=requestAnimationFrame(draw);};
@@ -82,6 +83,7 @@ export function WorldMap(props:Props) {
  return <div ref={host} className="world-map relative min-h-[420px] flex-1 overflow-hidden">
   <canvas ref={canvasRef} aria-label="Open world map" className="h-full w-full touch-none" onPointerDown={e=>{if(e.button!==0)return;down.current={x:e.clientX,y:e.clientY};const p=hit(e);if(p&&!props.addKind&&!props.locked&&sameId(p.id,props.selectedPlace)){const c=coords(e);drag.current={place:p,x:p.x,y:p.y,startX:c.x,startY:c.y};e.currentTarget.setPointerCapture(e.pointerId);}}} onPointerMove={e=>{const c=coords(e);setHover(c);if(drag.current){drag.current={...drag.current,...c};redraw.current();}}} onPointerUp={e=>{const c=coords(e),p=drag.current;const moved=down.current&&Math.hypot(e.clientX-down.current.x,e.clientY-down.current.y)>4;if(p){const cellDistance=Math.hypot(c.x-p.startX,c.y-p.startY);if(cellDistance>=3)props.onMove(p.place,c.x,c.y);else props.onPick(c.x,c.y,p.place);}else if(!moved)props.onPick(c.x,c.y,hit(e));drag.current=null;down.current=null;redraw.current();}} onPointerCancel={()=>{drag.current=null;down.current=null;redraw.current();}} onPointerLeave={()=>setHover(null)} />
    <div className="absolute right-3 top-3 flex items-center gap-1 border border-border bg-background/90 p-1">
+    <Button size="sm" variant={props.night?'secondary':'ghost'} aria-pressed={props.night} onClick={props.onToggleNight}><Moon/> NIGHT PREVIEW</Button>
     <Button size="sm" variant="ghost" disabled={!props.canUndo} title={props.undoTip} aria-label={props.undoTip} onClick={props.onUndo}><Undo2/> UNDO</Button><Button size="sm" variant="ghost" disabled={!props.canRedo} title={props.redoTip} aria-label={props.redoTip} onClick={props.onRedo}><Redo2/> REDO</Button><Button size="sm" variant={props.locked?'secondary':'ghost'} title={props.locked?'Places locked: dragging pans the map':'Places unlocked: drag a selected place to move it'} aria-pressed={props.locked} onClick={props.onToggleLock}>{props.locked?<Lock/>:<LockOpen/>} LOCK PLACES</Button>
     <Button size="icon" variant="ghost" title="Zoom in" aria-label="Zoom in" onClick={()=>zoomBy(1.4)}><Plus/></Button><Button size="icon" variant="ghost" title="Zoom out" aria-label="Zoom out" onClick={()=>zoomBy(1/1.4)}><Minus/></Button><Button size="sm" variant="ghost" onClick={()=>fit.current()}><Scan/> FIT</Button><span className="w-12 text-center text-xs tabular-nums">{magnification.toFixed(1)}×</span>
   </div>
