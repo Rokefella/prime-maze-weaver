@@ -1,7 +1,11 @@
+import type { Terrain, DayNight } from './terrain';
 import type { Area, Era, Id, Place, WorldLink } from './model';
 // Session undo history for WORLD writes: each step carries before/after so undo
 // and redo can replay the write without touching unrelated rows.
 export type WorldWrite =
+ | { type:'update-terrain'; key:string; before:Terrain; after:Terrain }
+ | { type:'insert-terrain'; key:string; row:Terrain }
+ | { type:'update-day-night'; before:DayNight; after:DayNight }
  | { type: 'update-place'; id: Id; before: Place; after: Place }
  | { type: 'insert-place'; id: Id; row: Place }
  | { type: 'delete-place'; id: Id; row: Place; links: WorldLink[] }
@@ -17,6 +21,9 @@ export function pushStep(stack: WorldWrite[], step: WorldWrite, cap = HISTORY_CA
 const placeName = (p: Place) => p.name || p.kind;
 export function writeLabel(w: WorldWrite): string {
  switch (w.type) {
+  case 'update-terrain': return `terrain ${w.after.name}`;
+  case 'insert-terrain': return `create terrain ${w.row.name}`;
+  case 'update-day-night': return 'day and night';
   case 'update-place': return `${w.before.x !== w.after.x || w.before.y !== w.after.y ? 'move' : 'edit'} ${placeName(w.after)}`;
   case 'insert-place': return `create ${placeName(w.row)}`;
   case 'delete-place': return `delete ${placeName(w.row)}`;

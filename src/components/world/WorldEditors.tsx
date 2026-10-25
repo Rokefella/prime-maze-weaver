@@ -1,3 +1,4 @@
+import { TerrainSwatch } from './TerrainSwatch';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Save, Trash2, Plus, ExternalLink } from 'lucide-react';
@@ -10,7 +11,7 @@ const words=(s:string)=>s.replaceAll('_',' ');
 const options=(items:readonly string[])=>items.map(value=>({value,label:words(value)}));
 const nullableNumber=(v:string)=>v===''?null:Number(v);
 const notes=(value:string|null,onChange:(v:string)=>void)=><textarea className="world-input min-h-20" value={value??''} onChange={e=>onChange(e.target.value)}/>;
-export function EraEditor({rows,onChange,onSave,busy}:{rows:WorldRows;onChange:(e:Era)=>void;onSave:(e:Era)=>void;busy:boolean}) {
+export function EraEditor({rows,onChange,onSave,busy,onTerrain}:{onTerrain:(key:string)=>void;rows:WorldRows;onChange:(e:Era)=>void;onSave:(e:Era)=>void;busy:boolean}) {
  const warnings=ringWarnings(rows.eras);
  return <>{warnings.length>0&&<p className="world-warning" role="status">{warnings.join(' · ')}</p>}{rows.eras.map(e=>{const sigil=rows.sigils.find(s=>s.drop_key===e.sigil_key);return <article className="mb-3 rounded border border-border bg-card/30 p-3" key={e.id}>
   <div className="mb-3 flex items-center gap-3">{sigil?.icon_svg&&<img className="h-8 w-8" alt={e.sigil_key??'Sigil'} src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(sigil.icon_svg)}`}/>}<span className="text-xs text-muted-foreground">{String(e.order_index).padStart(2,'0')}</span><h3 className="font-display text-sm">{e.name}</h3></div>
@@ -22,6 +23,7 @@ export function EraEditor({rows,onChange,onSave,busy}:{rows:WorldRows;onChange:(
   <div className="grid grid-cols-2 gap-2"><Field label="Step cost"><Input type="number" min={0} step="0.1" value={e.step_cost} onChange={v=>onChange({...e,step_cost:Number(v)})}/></Field><Field label="Darkness"><Input type="number" min={0} step="1" value={e.darkness} onChange={v=>onChange({...e,darkness:Number(v)})}/></Field></div>
   <Field label="Description">{notes(e.description,description=>onChange({...e,description}))}</Field>
   <Button variant="outline" size="sm" disabled={busy} onClick={()=>onSave(e)}><Save/> Save era</Button>
+  <div className="mt-3 flex flex-wrap gap-1" aria-label={`${e.name} terrain types`}>{rows.terrain.filter(t=>t.enabled&&t.eras?.includes(e.name)).sort((a,b)=>a.sort-b.sort).map(t=><Button key={t.key} size="sm" variant="ghost" className="h-auto gap-1 px-1 py-1 text-[9px]" onClick={()=>onTerrain(t.key)} title={t.name}><TerrainSwatch terrain={t} size={12}/>{t.name}</Button>)}</div>
  </article>;})}</>;
 }
 export function AreaEditor({area,rows,onChange,onSave,onOpen,onCreate,busy}:{area:Area|null;rows:WorldRows;onChange:(a:Area)=>void;onSave:(a:Area)=>void;onOpen:()=>void;onCreate:()=>void;busy:boolean}) {

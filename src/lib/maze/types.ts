@@ -45,7 +45,8 @@ export type CellType =
   | "CONSOLE_DOOR"
   | "DROP_SPAWN"
   | "SPAWN"
-  | "GHOST";
+  | "GHOST"
+  | "TERRAIN";
 
 export type BuilderMode =
   | "maze"
@@ -104,6 +105,7 @@ export interface GhostData {
 }
 
 export interface CellState {
+  terrain?: string;
   type: CellType;
   door?: DoorToRoomData;
   npc?: NpcData;
@@ -159,6 +161,7 @@ export interface WorldLayerEntry extends ExtraCellEntry {
 
 /** A cell belonging to non-maze modes (village / shadow realm). */
 export interface ExtraCellEntry {
+  terrain?: string;
   col: number;
   row: number;
   type: CellType;

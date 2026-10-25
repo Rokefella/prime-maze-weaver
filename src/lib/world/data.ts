@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { exportLevel } from '@/lib/maze/storage';
 import { buildUlamData } from '@/lib/maze/ulam';
 import type { SavedLevel } from '@/lib/maze/types';
+import { loadTerrain } from './terrainData';
 import type { Area, WorldRows } from './model';
 // Existing external tables intentionally use the project's loose table typing.
 const table = (name: string) => supabase.from(name as never);
@@ -11,9 +12,9 @@ export async function loadWorld(): Promise<WorldRows> {
  for(let i=0;i<results.length;i++) if(results[i].error) throw new Error(`${names[i]}: ${results[i].error?.message}`);
  const [settings,eras,areas,places,links,sigils]=results.map(r=>r.data??[]) as unknown as [WorldRows['settings'][],WorldRows['eras'],WorldRows['areas'],WorldRows['places'],WorldRows['links'],WorldRows['sigils']];
  const config=settings.find(s=>s.id===1); if(!config) throw new Error('World settings row 1 is missing.');
- return {settings:config,eras:eras.sort((a,b)=>a.order_index-b.order_index),areas,places,links,sigils};
+ return {terrain:await loadTerrain(),settings:config,eras:eras.sort((a,b)=>a.order_index-b.order_index),areas,places,links,sigils};
 }
-export async function saveRow<T>(name: 'world_eras'|'world_areas'|'world_places'|'world_links', row: T, keys: Record<string,unknown>): Promise<T> {
+export async function saveRow<T>(name: 'world_eras'|'world_areas'|'world_places'|'world_links'|'world_settings', row: T, keys: Record<string,unknown>): Promise<T> {
  let query=table(name).update(row as never); for(const [key,value] of Object.entries(keys)) query=query.eq(key,value as never);
  const {data,error}=await query.select('*').single(); if(error) throw error; return data as unknown as T;
 }

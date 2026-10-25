@@ -3,6 +3,9 @@ import { GridCanvas, type GridCanvasHandle } from "./GridCanvas";
 import { PrimeFinder } from "./PrimeFinder";
 import { DropsPanel } from "./DropsPanel";
 import { DraftLibrary } from "./DraftLibrary";
+import { TerrainBrush } from './TerrainBrush';
+import { loadTerrain, areaTerrainEra } from '@/lib/world/terrainData';
+import { terrainCell, type Terrain } from '@/lib/world/terrain';
 import { WorldPanel } from "./WorldPanel";
 import { cellsEqual, eraForLevel, paintLayerCell, windowSideAt, worldAtLevel } from "@/lib/maze/worldLayers";
 import { BuildingStylePicker } from "./BuildingStylePicker";
@@ -340,6 +343,10 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
   const [worldLayers, setWorldLayers] = useState<WorldLayerEntry[] | null>(null);
   const [worldLevel, setWorldLevel] = useState(1);
   const [showNewAtLevel, setShowNewAtLevel] = useState(true);
+  const [terrainRows,setTerrainRows]=useState<Terrain[]>([]);
+  const [terrainEra,setTerrainEra]=useState<string|null>(null);
+  const [terrainError,setTerrainError]=useState('');
+  const [terrainKey,setTerrainKey]=useState<string|null>(null);
   const [tool, setTool] = useState<CellType>("WALL");
   const [showNumbers, setShowNumbers] = useState(false);
   const [showPrimeLabels, setShowPrimeLabels] = useState(false);
@@ -409,6 +416,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mode = meta.mode ?? "maze";
+  useEffect(()=>{if(mode!=='village')return;let active=true;setTerrainEra(null);setTerrainError('');Promise.all([loadTerrain(),areaTerrainEra(meta.levelName)]).then(([types,era])=>{if(active){setTerrainRows(types);setTerrainEra(era);}}).catch(e=>{if(active)setTerrainError(String(e.message??e));});return()=>{active=false;};},[mode,meta.levelName]);
   const tools = useMemo(() => toolsForMode(mode), [mode]);
   const fragmentEntries = useMemo(() => draftFragments(cells, ulam), [cells, ulam]);
 
@@ -471,8 +479,8 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
 
   useEffect(() => {
     // Keep the active tool valid for the current mode.
-    if (!tools.some((t) => t.type === tool)) setTool(tools[0].type);
-  }, [tools, tool]);
+    if (!(mode === "village" && tool === "TERRAIN") && !tools.some((t) => t.type === tool)) setTool(tools[0].type);
+  }, [tools, tool, mode]);
 
   const changeMode = (next: BuilderMode) => {
     if (next === mode) return;
@@ -692,6 +700,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       const idx = row * size + col;
 
       const makeCell = (): CellState => {
+        if(tool === "TERRAIN" && mode === "village"){const terrain=terrainRows.find(t=>t.key===terrainKey&&t.enabled);if(terrain)return terrainCell(terrain);}
         const base: CellState = { type: tool };
         if (mode === "village" && isPaintableBuilding(tool)) {
           base.tone = buildingTone;
@@ -732,6 +741,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
         return base;
       };
 
+      if(e.button!==2&&tool==="TERRAIN"&&!terrainRows.some(t=>t.key===terrainKey&&t.enabled)){setFlash({msg:"Choose an enabled terrain type.",tone:"warn"});return;}
       // Right-click clears to corridor
       if (e.button === 2) {
         setRectStart(null);
@@ -894,7 +904,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       });
       setManuallyEdited(true);
     },
-    [tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells, buildingTone, buildingAge],
+    [terrainRows,terrainKey,tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells, buildingTone, buildingAge],
   );
 
   const runGenerate = () => {
@@ -1367,6 +1377,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       <main className="relative flex-1 overflow-hidden">
         <GridCanvas
           ref={gridRef}
+          terrainTypes={terrainRows}
           ulam={ulam}
           cells={cells}
           showNumbers={showNumbers}
@@ -1820,6 +1831,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
           )}
         </Section>
 
+        {mode === "village" && <Section title="TERRAIN"><TerrainBrush rows={terrainRows} era={terrainEra} error={terrainError} selected={tool==='TERRAIN'?terrainKey:null} onSelect={t=>{setTerrainKey(t.key);setTool('TERRAIN');setRectStart(null);}}/></Section>}
         <Section title="Cell Tools">
           <div className="mb-2 flex gap-1.5">
             {(["cell", "rect"] as const).map((m) => (

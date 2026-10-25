@@ -6,6 +6,7 @@ import { isGhostTone } from "./spawnGhost";
 /** Extra fields of an extraCells entry for a cell, shared by export and world layers. */
 export function extraFieldsFor(cell: CellState, mode: BuilderMode): Partial<ExtraCellEntry> {
   return {
+    ...(cell.type === "TERRAIN" && cell.terrain ? { terrain: cell.terrain } : {}),
     ...(cell.type === "GHOST" && cell.ghost ? {
       ...(cell.ghost.title?.trim() ? { title: cell.ghost.title } : {}),
       ...(cell.ghost.name?.trim() ? { name: cell.ghost.name } : {}),
@@ -41,6 +42,7 @@ export function extraFieldsFor(cell: CellState, mode: BuilderMode): Partial<Extr
 export function cellFromExtraEntry(e: ExtraCellEntry, mode: BuilderMode): CellState {
   return {
     type: e.type,
+    ...(e.terrain !== undefined ? { terrain: e.terrain } : {}),
      ...(e.type === "GHOST" ? {
       ghost: {
          ...(e.title ? { title: e.title } : {}),
@@ -122,6 +124,7 @@ const EXTRA_TYPES: Partial<Record<CellType, true>> = {
   DROP_SPAWN: true,
   SPAWN: true,
   GHOST: true,
+  TERRAIN: true,
 };
 
 export function exportLevel(
