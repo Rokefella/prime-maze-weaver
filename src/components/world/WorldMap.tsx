@@ -17,7 +17,7 @@ export function WorldMap(props:Props) {
  const [mapError,setMapError]=useState(''),[underLoading,setUnderLoading]=useState(false);
  const underRows=useRef<UnderRow[]|null>(null),underLoadingRef=useRef(false);
  const cacheRef=useRef<TerrainWindowCache|null>(null);
- useEffect(()=>{if(props.layer!==1||underRows.current||underLoadingRef.current)return;let cancelled=false;underLoadingRef.current=true;setUnderLoading(true);setMapError('');void loadUnderground().then(rows=>{underRows.current=rows;redraw.current();}).catch(e=>{if(!cancelled)setMapError(e instanceof Error?e.message:String(e));}).finally(()=>{underLoadingRef.current=false;if(!cancelled)setUnderLoading(false);});return()=>{cancelled=true;};},[props.layer]);
+ useEffect(()=>{if(props.layer!==1||underRows.current||underLoadingRef.current)return;underLoadingRef.current=true;setUnderLoading(true);setMapError('');void loadUnderground().then(rows=>{underRows.current=rows;redraw.current();}).catch(e=>setMapError(e instanceof Error?e.message:String(e))).finally(()=>{underLoadingRef.current=false;setUnderLoading(false);});},[props.layer]);
  const drag=useRef<{place:Place;x:number;y:number;startX:number;startY:number}|null>(null);
  useEffect(()=>{
   const canvas=canvasRef.current, container=host.current; if(!canvas||!container) return;
@@ -118,6 +118,6 @@ export function WorldMap(props:Props) {
     <Button size="icon" variant="ghost" title="Zoom in" aria-label="Zoom in" onClick={()=>zoomBy(1.4)}><Plus/></Button><Button size="icon" variant="ghost" title="Zoom out" aria-label="Zoom out" onClick={()=>zoomBy(1/1.4)}><Minus/></Button><Button size="sm" variant="ghost" onClick={()=>fit.current()}><Scan/> FIT</Button><span className="w-12 text-center text-xs tabular-nums">{magnification.toFixed(1)}×</span>
   </div>
   <div className="pointer-events-none absolute bottom-3 left-3 border border-border bg-background/90 px-3 py-2 text-[11px] tabular-nums" aria-live="off">{hover?<>{props.layer===1?'Underground cell':'Cell'} {hover.x},{hover.y} · Area {Math.floor((hoverPoint?.x??0)/50)},{Math.floor((hoverPoint?.y??0)/50)} · {era?.name??'No era'}<br/>Plot {number} · {isPrime(number)?'Prime':'Not prime'}</>:props.layer===1?'250 × 250 underground · 4 × 4 surface blocks':'1000 × 1000 · 20 × 20 areas'}</div>
-  {(mapError||underLoading||(props.layer===0&&props.terrainOverlay&&transform.current.k<3))&&<div className="pointer-events-none absolute bottom-3 right-3 max-w-[60%] border border-border bg-background/90 px-3 py-2 text-xs" role={mapError?'alert':'status'}>{mapError|| (underLoading?'Loading underground…':'Terrain · zoom to 3 px/cell')}</div>}
+  {(mapError||underLoading||(props.layer===0&&props.terrainOverlay&&transform.current.k<3))&&<div className="absolute bottom-16 right-3 max-w-[80%] border border-border bg-background/90 px-3 py-2 text-xs" role={mapError?'alert':'status'}>{mapError|| (underLoading?'Loading underground…':'Terrain · zoom to 3 px/cell')}{mapError&&<Button size="sm" variant="ghost" onClick={()=>{setMapError('');cacheRef.current?.retry();redraw.current();if(props.layer===1)props.onLayer(0);}}>Retry</Button>}</div>}
  </div>;
 }

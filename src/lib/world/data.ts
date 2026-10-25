@@ -15,7 +15,7 @@ export async function loadUnderground():Promise<UnderRow[]> {
 }
 export async function loadTerrainWindow(tile:WindowTile):Promise<TerrainWindow> {
  const {data,error}=await supabase.rpc('world_window' as never,{p_x0:tile.x0,p_y0:tile.y0,p_w:tile.w,p_h:tile.h} as never);
- if(error)throw error;
+ if(error)throw new Error(error.code==='57014'?'Generated terrain timed out in the shared database. Retry or view another area.':error.message);
  const window=data as unknown as TerrainWindow;
  if(!window||window.w!==tile.w||window.h!==tile.h||window.x0!==tile.x0||window.y0!==tile.y0||!Array.isArray(window.keys)||!Array.isArray(window.rows)||window.rows.length!==window.h||window.rows.some(row=>!Array.isArray(row)||row.length!==window.w))throw new Error('Invalid generated terrain window.');
  return window;
