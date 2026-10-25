@@ -11,3 +11,6 @@
 - [x] Add Village path styles with live drawing and lossless persistence; verify save/reload and copies.
 - [x] Add WORLD panel for Village drafts with worldLayers (slider, painting, save/reload).
 - [x] Add separate open-world canvas, era/area/place/link editors, measurement, and preserved Builder navigation; verify shared-data loading, era save/readback, entrance drag/readback/restoration, plot readouts, route total and rule tests.
+- [ ] Add terrain catalogue, era chips, day/night controls and WORLD history coverage.
+- [ ] Add Village terrain brush, static drawing, hover details and lossless persistence.
+- [ ] Verify terrain rules and live shared-data flows; restore colour and remove only the temporary draft.
