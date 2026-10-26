@@ -7,13 +7,16 @@ import { DayNightEditor } from './DayNightEditor';
 import { saveTerrain } from '@/lib/world/terrainData';
 import type { Terrain, DayNight } from '@/lib/world/terrain';
 import { WorldMap } from './WorldMap';
+import { useFinds } from './FindsLayer';
+import { FindsPanel } from './FindsPanel';
+import { FIND_KINDS, NO_QUEST, filterFinds, type FindKind, type WorldFind } from '@/lib/world/finds';
 import { AreaEditor, EraEditor, LinksEditor, MeasureEditor, PlaceEditor, type LinkDraft } from './WorldEditors';
 import { createAreaDraft, findDraft, insertRow, loadWorld, removeRow, saveRow } from '@/lib/world/data';
 import { pushStep, writeLabel, type WorldWrite } from '@/lib/world/history';
 import { placeLayer, type MapLayer } from '@/lib/world/layers';
 import { sameId, type Area, type Era, type Id, type Place, type WorldLink, type WorldRows } from '@/lib/world/model';
 import type { SavedLevel } from '@/lib/maze/types';
-const TABS=['ERAS','AREA','PLACES','LINKS','MEASURE','TERRAIN'] as const;
+const TABS=['ERAS','AREA','PLACES','LINKS','MEASURE','TERRAIN','FINDS'] as const;
 type Snapshot=Place|Era|Area|WorldLink|Terrain|DayNight|MazeSkin;
 export function WorldWorkspace({onOpenDraft,active}:{onOpenDraft:(draft:SavedLevel)=>boolean;active:boolean}) {
  const [rows,setRows]=useState<WorldRows|null>(null),[tab,setTab]=useState<typeof TABS[number]>('ERAS');
@@ -26,6 +29,13 @@ export function WorldWorkspace({onOpenDraft,active}:{onOpenDraft:(draft:SavedLev
  const [linkDraft,setLinkDraft]=useState<LinkDraft>({from_place:'',to_place:'',kind:'clue',requirement:'',note:''}),[linkPick,setLinkPick]=useState<'from'|'to'|null>(null);
  const [measureIds,setMeasureIds]=useState<Id[]>([]),[measurePick,setMeasurePick]=useState(false);
  const [layer,setLayer]=useState<MapLayer>(0),[layerFilter,setLayerFilter]=useState('0'),[terrainOverlay,setTerrainOverlay]=useState(false);
+ const finds=useFinds();
+ const [findsOn,setFindsOn]=useState(true),[findId,setFindId]=useState<Id|null>(null),[centerFind,setCenterFind]=useState<WorldFind|null>(null);
+ const [findKinds,setFindKinds]=useState(new Set<FindKind>(FIND_KINDS)),[findQuests,setFindQuests]=useState<Set<string>|null>(null);
+ const quests=findQuests??new Set(finds.rows.map(f=>f.quest_key??NO_QUEST));
+ const shownFinds=filterFinds(finds.rows,layer,findKinds,quests);
+ const selectedFind=finds.rows.find(f=>sameId(f.id,findId))??null;
+ const selectFind=(f:WorldFind|null)=>{setFindId(f?.id??null);setTab('FINDS');setAddKind(null);setLinkPick(null);setMeasurePick(false);};
  const [locked,setLocked]=useState(true);
  const [terrainKey,setTerrainKey]=useState<string|null>(null),[night,setNight]=useState(false);
  const [history,setHistory]=useState<WorldWrite[]>([]),[redoStack,setRedoStack]=useState<WorldWrite[]>([]);
@@ -101,14 +111,15 @@ export function WorldWorkspace({onOpenDraft,active}:{onOpenDraft:(draft:SavedLev
  return <div className="world-workspace flex h-full flex-col bg-background text-foreground">
   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
    <div><h1 className="font-display text-base">WORLD <span className="ml-2 text-xs text-muted-foreground">{rows.settings.size.toLocaleString()} × {rows.settings.size.toLocaleString()}</span></h1><p className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">{rows.eras.length} eras · {rows.areas.length} areas · {rows.places.length} places</p></div>
-   <div className="flex flex-wrap gap-4 text-xs">{[{name:'Maze route',value:route,set:setRoute},{name:'Links',value:links,set:setLinks},{name:'Prime plots',value:primes,set:setPrimes}].map(t=><label key={t.name} className="flex items-center gap-2"><input type="checkbox" checked={t.value} onChange={e=>t.set(e.target.checked)}/>{t.name}</label>)}</div>
+   <div className="flex flex-wrap gap-4 text-xs">{[{name:'Maze route',value:route,set:setRoute},{name:'Links',value:links,set:setLinks},{name:'Prime plots',value:primes,set:setPrimes},{name:'FINDS',value:findsOn,set:setFindsOn}].map(t=><label key={t.name} className="flex items-center gap-2"><input type="checkbox" checked={t.value} onChange={e=>t.set(e.target.checked)}/>{t.name}</label>)}</div>
   </div>
   <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-   <WorldMap layer={layer} onLayer={next=>{setLayer(next);setLayerFilter(String(next));setPlaceId(null);setAddKind(null);}} terrainOverlay={terrainOverlay} onToggleTerrain={()=>setTerrainOverlay(v=>!v)} night={night} onToggleNight={()=>setNight(n=>!n)} rows={rows} selectedPlace={placeId} selectedArea={areaKey} route={route} links={links} primes={primes} addKind={addKind} onPick={pick} onMove={move} locked={locked} onToggleLock={()=>setLocked(v=>!v)} canUndo={history.length>0} canRedo={redoStack.length>0} undoTip={history.length?`Undo: ${writeLabel(history[history.length-1])}`:'Nothing to undo'} redoTip={redoStack.length?`Redo: ${writeLabel(redoStack[redoStack.length-1])}`:'Nothing to redo'} onUndo={undo} onRedo={redo}/>
+   <WorldMap finds={shownFinds} findsOn={findsOn} findsTotal={finds.rows.length} selectedFind={findId} onFind={selectFind} onFindsPanel={()=>setTab('FINDS')} centerFind={centerFind} layer={layer} onLayer={next=>{setLayer(next);setLayerFilter(String(next));setPlaceId(null);setAddKind(null);}} terrainOverlay={terrainOverlay} onToggleTerrain={()=>setTerrainOverlay(v=>!v)} night={night} onToggleNight={()=>setNight(n=>!n)} rows={rows} selectedPlace={placeId} selectedArea={areaKey} route={route} links={links} primes={primes} addKind={addKind} onPick={pick} onMove={move} locked={locked} onToggleLock={()=>setLocked(v=>!v)} canUndo={history.length>0} canRedo={redoStack.length>0} undoTip={history.length?`Undo: ${writeLabel(history[history.length-1])}`:'Nothing to undo'} redoTip={redoStack.length?`Redo: ${writeLabel(redoStack[redoStack.length-1])}`:'Nothing to redo'} onUndo={undo} onRedo={redo}/>
    <aside className="world-side flex min-h-0 flex-col border-t border-border md:border-l md:border-t-0">
-    <nav className="grid shrink-0 grid-cols-6 border-b border-border" aria-label="World panels">{TABS.map(t=><Button key={t} className="rounded-none px-1 text-[10px]" size="sm" variant={tab===t?'secondary':'ghost'} aria-pressed={tab===t} onClick={()=>{setTab(t);setAddKind(null);setLinkPick(null);setMeasurePick(false);}}>{t}</Button>)}</nav>
+    <nav className="grid shrink-0 grid-cols-7 border-b border-border" aria-label="World panels">{TABS.map(t=><Button key={t} className="rounded-none px-1 text-[10px]" size="sm" variant={tab===t?'secondary':'ghost'} aria-pressed={tab===t} onClick={()=>{setTab(t);setAddKind(null);setLinkPick(null);setMeasurePick(false);}}>{t}</Button>)}</nav>
     {(error||notice||busy)&&<div className="border-b border-border px-3 py-2 text-xs" role={error?'alert':'status'}>{error|| (busy?'Saving…':notice)}</div>}
     <div className="min-h-0 flex-1 overflow-y-auto p-4">
+     {tab==='FINDS'&&<FindsPanel rows={finds.rows} shown={shownFinds} drops={finds.drops} kinds={findKinds} quests={quests} onKinds={setFindKinds} onQuests={setFindQuests} selected={selectedFind} onSelect={selectFind} onCenter={f=>{setLayer(f.layer);setLayerFilter(String(f.layer));setCenterFind({...f});}} loading={finds.loading} error={finds.error} onRetry={finds.retry}/>}
      {tab==='TERRAIN'&&<TerrainPanel rows={rows} selected={terrainKey} onSelect={setTerrainKey} onSave={terrainSave} busy={busy}/>}
      {tab==='ERAS'&&<><DayNightEditor value={rows.settings.day_night} busy={busy} onChange={day_night=>setRows(r=>r?{...r,settings:{...r.settings,day_night}}:r)} onSave={saveDayNight}/><EraEditor skins={skins} onSkinChange={skin=>setSkins(list=>list.map(s=>s.era_order===skin.era_order?skin:s))} onSkinSave={skinSave} onTerrain={openTerrain} rows={rows} busy={busy} onChange={e=>setRows(r=>r?{...r,eras:r.eras.map(old=>sameId(old.id,e.id)?e:old)}:r)} onSave={e=>void run(async()=>{const before=snap<Era>(`era:${e.id}`)??e;const saved=await saveRow('world_eras',withoutId(e),{id:e.id});const after={...e,...saved};setRows(r=>r?{...r,eras:r.eras.map(old=>sameId(old.id,e.id)?after:old)}:r);remember(`era:${e.id}`,after);record({type:'update-era',id:e.id,before,after});},'Era saved')}/></>}
      {tab==='AREA'&&<AreaEditor rows={rows} area={area} busy={busy} onChange={changeArea} onSave={a=>void run(async()=>{const before=snap<Area>(`area:${a.ax},${a.ay}`)??a;const saved=await saveRow('world_areas',a,{ax:a.ax,ay:a.ay});const after={...a,...saved};changeArea(after);remember(`area:${a.ax},${a.ay}`,after);record({type:'update-area',before,after});},'Area saved')} onCreate={()=>{if(area)void run(async()=>{const before=snap<Area>(`area:${area.ax},${area.ay}`)??area;const after=await createAreaDraft(area);changeArea(after);remember(`area:${area.ax},${area.ay}`,after);record({type:'update-area',before,after});},'Area draft created');}} onOpen={()=>{if(area?.draft_name)void run(async()=>{const draft=await findDraft(area.draft_name??'');if(!onOpenDraft(draft))throw new Error('Opening draft cancelled; builder work preserved.');},'Draft opened');}}/>}

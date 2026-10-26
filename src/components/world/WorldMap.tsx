@@ -7,13 +7,17 @@ import { layerCoords, mapPoint, placeLayer, transitionTarget, visibleTiles, tile
 import { Button } from '@/components/ui/button';
 import { eraAt, isPrime, mazeRoute, plotNumber, sameId, type Id, type Place, type WorldRows } from '@/lib/world/model';
 
-interface Props { layer:MapLayer; onLayer:(layer:MapLayer)=>void; terrainOverlay:boolean; onToggleTerrain:()=>void; night:boolean; onToggleNight:()=>void; rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; locked:boolean; onToggleLock:()=>void; canUndo:boolean; canRedo:boolean; undoTip:string; redoTip:string; onUndo:()=>void; onRedo:()=>void; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
+import { FindsLayer, FindsLegend } from './FindsLayer';
+import type { WorldFind } from '@/lib/world/finds';
+
+interface Props { finds:WorldFind[]; findsOn:boolean; findsTotal:number; selectedFind:Id|null; onFind:(find:WorldFind)=>void; onFindsPanel:()=>void; centerFind:WorldFind|null; layer:MapLayer; onLayer:(layer:MapLayer)=>void; terrainOverlay:boolean; onToggleTerrain:()=>void; night:boolean; onToggleNight:()=>void; rows:WorldRows; selectedPlace:Id|null; selectedArea:{ax:number;ay:number}|null; route:boolean; links:boolean; primes:boolean; addKind:string|null; locked:boolean; onToggleLock:()=>void; canUndo:boolean; canRedo:boolean; undoTip:string; redoTip:string; onUndo:()=>void; onRedo:()=>void; onPick:(x:number,y:number,place?:Place)=>void; onMove:(place:Place,x:number,y:number)=>void }
 export function WorldMap(props:Props) {
  const canvasRef=useRef<HTMLCanvasElement>(null), host=useRef<HTMLDivElement>(null);
  const latest=useRef(props); latest.current=props;
  const transform=useRef(zoomIdentity), behavior=useRef<ZoomBehavior<HTMLCanvasElement,unknown>|null>(null);
  const redraw=useRef<()=>void>(()=>{}), fit=useRef<()=>void>(()=>{});
  const [hover,setHover]=useState<{x:number;y:number}|null>(null),[magnification,setMagnification]=useState(1);
+ const [findTransform,setFindTransform]=useState({x:0,y:0,k:1});
  const [mapError,setMapError]=useState(''),[underLoading,setUnderLoading]=useState(false);
  const underRows=useRef<UnderRow[]|null>(null),underLoadingRef=useRef(false);
  const cacheRef=useRef<TerrainWindowCache|null>(null);
@@ -94,7 +98,7 @@ export function WorldMap(props:Props) {
   };
   redraw.current=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   const sel=select<HTMLCanvasElement,unknown>(canvas);
-  const z=zoom<HTMLCanvasElement,unknown>().scaleExtent([.05,30]).wheelDelta(e=>-e.deltaY*(e.deltaMode===1?.05:e.deltaMode?1:.002)).filter(e=>e.type==='wheel'||(!latest.current.addKind&&!drag.current&&!e.button)).on('zoom',e=>{transform.current=e.transform;setMagnification(e.transform.k/base);redraw.current();});
+  const z=zoom<HTMLCanvasElement,unknown>().scaleExtent([.05,30]).wheelDelta(e=>-e.deltaY*(e.deltaMode===1?.05:e.deltaMode?1:.002)).filter(e=>e.type==='wheel'||(!latest.current.addKind&&!drag.current&&!e.button)).on('zoom',e=>{transform.current=e.transform;setFindTransform({x:e.transform.x,y:e.transform.y,k:e.transform.k});setMagnification(e.transform.k/base);redraw.current();});
   behavior.current=z;sel.call(z);
   // D3 owns wheel/pan/pinch; pointer dragging a marker suppresses map panning.
   fit.current=()=>{base=Math.max(.05,Math.min((width-48)/1000,(height-48)/1000));sel.call(z.transform,zoomIdentity.translate((width-1000*base)/2,(height-1000*base)/2).scale(base));};
@@ -103,6 +107,12 @@ export function WorldMap(props:Props) {
   return()=>{cache.dispose();cacheRef.current=null;observer.disconnect();sel.on('.zoom',null);if(frame)cancelAnimationFrame(frame);};
  },[]);
  useEffect(()=>{redraw.current();},[props]);
+ useEffect(()=>{
+  const canvas=canvasRef.current,z=behavior.current,container=host.current,f=props.centerFind;
+  if(!canvas||!z||!container||!f)return;
+  const point=mapPoint(f.x,f.y,f.layer),k=transform.current.k;
+  select<HTMLCanvasElement,unknown>(canvas).call(z.transform,zoomIdentity.translate(container.clientWidth/2-point.x*k,container.clientHeight/2-point.y*k).scale(k));
+ },[props.centerFind]);
  const coords=(e:React.PointerEvent)=>{const box=e.currentTarget.getBoundingClientRect();const [x,y]=transform.current.invert([e.clientX-box.left,e.clientY-box.top]);return layerCoords(x,y,props.layer);};
  const hit=(e:React.PointerEvent)=>{const box=e.currentTarget.getBoundingClientRect();return [...props.rows.places].filter(p=>placeLayer(p)===props.layer).reverse().find(p=>{const point=mapPoint(p.x,p.y,placeLayer(p));const [x,y]=transform.current.apply([point.x,point.y]);return Math.hypot(x-(e.clientX-box.left),y-(e.clientY-box.top))<14;});};
  const down=useRef<{x:number;y:number}|null>(null);
@@ -110,6 +120,7 @@ export function WorldMap(props:Props) {
  const hoverPoint=hover?mapPoint(hover.x,hover.y,props.layer):null;const era=hoverPoint?eraAt(props.rows.eras,hoverPoint.x,hoverPoint.y):undefined;const number=hoverPoint?plotNumber(Math.floor(hoverPoint.x/4),Math.floor(hoverPoint.y/4)):0;
  return <div ref={host} className="world-map relative min-h-[420px] flex-1 overflow-hidden">
   <canvas ref={canvasRef} aria-label="Open world map" className="h-full w-full touch-none" onPointerDown={e=>{if(e.button!==0)return;down.current={x:e.clientX,y:e.clientY};const p=hit(e);if(p&&!props.addKind&&!props.locked&&sameId(p.id,props.selectedPlace)){const c=coords(e);drag.current={place:p,x:p.x,y:p.y,startX:c.x,startY:c.y};e.currentTarget.setPointerCapture(e.pointerId);}}} onPointerMove={e=>{const c=coords(e);setHover(c);if(drag.current){drag.current={...drag.current,...c};redraw.current();}}} onPointerUp={e=>{const c=coords(e),p=drag.current;const moved=down.current&&Math.hypot(e.clientX-down.current.x,e.clientY-down.current.y)>4;if(p){const cellDistance=Math.hypot(c.x-p.startX,c.y-p.startY);if(cellDistance>=3)props.onMove(p.place,c.x,c.y);else props.onPick(c.x,c.y,p.place);}else if(!moved)props.onPick(c.x,c.y,hit(e));drag.current=null;down.current=null;redraw.current();}} onPointerCancel={()=>{drag.current=null;down.current=null;redraw.current();}} onPointerLeave={()=>setHover(null)} />
+   {props.findsOn&&<FindsLayer rows={props.finds} terrain={props.rows.terrain} transform={findTransform} selected={props.selectedFind} onSelect={props.onFind}/>}
    <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center gap-1 border border-border bg-background/90 p-1">
     <div className="flex border border-border" role="group" aria-label="Map layer">{([0,1] as const).map(layer=><Button key={layer} size="sm" variant={props.layer===layer?'secondary':'ghost'} aria-pressed={props.layer===layer} onClick={()=>{setHover(null);setMapError('');props.onLayer(layer);}}>{layer===0?'SURFACE':'UNDERGROUND'}</Button>)}</div>
     <Button size="sm" variant={props.terrainOverlay?'secondary':'ghost'} aria-pressed={props.terrainOverlay} disabled={props.layer===1} title="Generated surface terrain" onClick={()=>{cacheRef.current?.retry();setMapError('');props.onToggleTerrain();}}>TERRAIN</Button>
@@ -118,6 +129,7 @@ export function WorldMap(props:Props) {
     <Button size="icon" variant="ghost" title="Zoom in" aria-label="Zoom in" onClick={()=>zoomBy(1.4)}><Plus/></Button><Button size="icon" variant="ghost" title="Zoom out" aria-label="Zoom out" onClick={()=>zoomBy(1/1.4)}><Minus/></Button><Button size="sm" variant="ghost" onClick={()=>fit.current()}><Scan/> FIT</Button><span className="w-12 text-center text-xs tabular-nums">{magnification.toFixed(1)}×</span>
   </div>
   <div className="pointer-events-none absolute bottom-3 left-3 border border-border bg-background/90 px-3 py-2 text-[11px] tabular-nums" aria-live="off">{hover?<>{props.layer===1?'Underground cell':'Cell'} {hover.x},{hover.y} · Area {Math.floor((hoverPoint?.x??0)/50)},{Math.floor((hoverPoint?.y??0)/50)} · {era?.name??'No era'}<br/>Plot {number} · {isPrime(number)?'Prime':'Not prime'}</>:props.layer===1?'250 × 250 underground · 4 × 4 surface blocks':'1000 × 1000 · 20 × 20 areas'}</div>
-  {(mapError||underLoading||(props.layer===0&&props.terrainOverlay&&transform.current.k<3))&&<div className="absolute bottom-16 right-3 max-w-[80%] border border-border bg-background/90 px-3 py-2 text-xs" role={mapError?'alert':'status'}>{mapError|| (underLoading?'Loading underground…':'Terrain · zoom to 3 px/cell')}{mapError&&<Button size="sm" variant="ghost" onClick={()=>{setMapError('');cacheRef.current?.retry();redraw.current();if(props.layer===1)props.onLayer(0);}}>Retry</Button>}</div>}
+  {props.findsOn&&<FindsLegend rows={props.finds} total={props.findsTotal} onOpen={props.onFindsPanel}/>}
+  {(mapError||underLoading||(props.layer===0&&props.terrainOverlay&&transform.current.k<3))&&<div className={`absolute ${props.findsOn?'bottom-40':'bottom-16'} right-3 max-w-[80%] border border-border bg-background/90 px-3 py-2 text-xs`} role={mapError?'alert':'status'}>{mapError|| (underLoading?'Loading underground…':'Terrain · zoom to 3 px/cell')}{mapError&&<Button size="sm" variant="ghost" onClick={()=>{setMapError('');cacheRef.current?.retry();redraw.current();if(props.layer===1)props.onLayer(0);}}>Retry</Button>}</div>}
  </div>;
 }
