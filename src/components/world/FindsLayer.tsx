@@ -27,7 +27,7 @@ export function FindsLayer({rows,terrain,transform,selected,onSelect}:{rows:Worl
     style={{left:marker.x,top:marker.y}} aria-label={`Find: ${f.title||f.find_key}`} title={f.title||f.find_key}
     onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onMouseDown={e=>e.stopPropagation()}
     onClick={e=>{e.stopPropagation();onSelect(f);}}>
-     {marker.icon&&svg?<img className="find-icon" src={findIconUri(svg)} alt="" draggable={false} onError={e=>{e.currentTarget.hidden=true;}}/>:<span className="find-dot"/>}
+     <span className="find-dot"/>{marker.icon&&svg&&<img className="find-icon absolute" src={findIconUri(svg)} alt="" draggable={false} onError={e=>{e.currentTarget.hidden=true;}}/>}
    </Button>;
   })}
  </div>;
