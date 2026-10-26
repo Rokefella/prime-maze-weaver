@@ -160,7 +160,33 @@
   --world-edited: #e7b058;
   --world-final: #77c98c;
   --world-well: #172223;
+  --find-cache_steps: #77c98c;
+  --find-cache_credits: #f5c060;
+  --find-thing: #62a8ff;
+  --find-tool: #f29b50;
+  --find-words: #b79bff;
+  --find-quest_object: #f16d72;
+  --find-landmark: #a0abad;
+  --find-sigil: #ffffff;
 }
+.find-cache_steps { --find-tone: var(--find-cache_steps); }
+.find-cache_credits { --find-tone: var(--find-cache_credits); }
+.find-thing { --find-tone: var(--find-thing); }
+.find-tool { --find-tone: var(--find-tool); }
+.find-words { --find-tone: var(--find-words); }
+.find-quest_object { --find-tone: var(--find-quest_object); }
+.find-landmark { --find-tone: var(--find-landmark); }
+.find-sigil { --find-tone: var(--find-sigil); }
+.find-marker { position:absolute; transform:translate(-50%,-50%); pointer-events:auto; width:24px; height:24px; min-width:24px; border:0; border-radius:50%; padding:0; background:transparent; color:var(--find-tone); touch-action:none; }
+.find-marker:hover { background:transparent; }
+.find-dot { width:10px; height:10px; border:1px solid var(--world-map-bg); border-radius:50%; background:var(--find-tone); }
+.find-hidden::after { content:''; position:absolute; inset:4px; border:1px dashed var(--find-tone); border-radius:50%; }
+.find-selected { outline:2px solid var(--find-tone); outline-offset:1px; }
+.find-icon { width:24px; height:24px; object-fit:contain; background:var(--world-map-bg); border:1px solid var(--find-tone); border-radius:3px; }
+.find-legend-dot { display:inline-block; flex-shrink:0; width:6px; height:6px; border-radius:50%; background:var(--find-tone); }
+.find-details { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; font-size:12px; }
+.find-details dt { color:var(--muted-foreground); font-size:10px; margin-bottom:3px; }
+.find-details dd { white-space:pre-wrap; overflow-wrap:anywhere; }
 .weaver-workspace { height: 100dvh; overflow: hidden; }
 .weaver-content { height: calc(100dvh - 3rem); }
 .weaver-content[hidden] { display: none; }

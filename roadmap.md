@@ -19,4 +19,4 @@
 - [ ] Verify full generated surface tiles from shared world_window; blocked by database statement timeouts even on a 4x4 centre window. No database changes permitted.
 - [x] Add deterministic Maze skin preview and optional override persistence; verify eight shared skins, export/import and Auto omission.
 - [x] Add WORLD era skin editors and session undo/redo; verify save/undo/redo with intercepted writes only; all 110 rule tests pass.
-- [ ] Add read-only WORLD FINDS markers, kind/quest filters, legend and details/centering; verify shared rows without writes.
+- [x] Add read-only WORLD FINDS markers, kind/quest filters, legend and details/centering; verified 45 real shared rows, clicks, icons, centering, filters and mobile without writes; 36 focused WORLD tests pass.
