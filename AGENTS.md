@@ -1,4 +1,5 @@
 # Architecture rules
+- Keep optional blue-door removal and singleton placement in the pure Maze blueDoor helper; derive the editor toggle from loaded blueDoor without adding saved metadata or automatic doors.
 - Keep WORLD finds models/filtering in the pure finds helper, shared-client reads in findsData, and id-keyed marker/details components separate from map drawing; the overlay follows d3 transforms and exposes no writes so future editing stays isolated.
 - Keep Maze skin hash/topology selection and canvas drawing in the shared skins helper; browser-client skinData reads/saves and optional top-level overrides preserve legacy geometry, while WORLD uses saved snapshots for skin undo/redo.
 
