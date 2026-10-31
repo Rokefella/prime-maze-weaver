@@ -1,4 +1,5 @@
 - [x] Add Village building tones/ages, AGE ALL, and next-village draft creation; verify placement and save/reload compatibility.
+- [ ] Make Maze blue doors optional with a No blue door toggle; test null round-trips, blue-room cleanup and generation without saved-data changes.
 - [x] Group Library drafts with search, remembered sections, and unchanged draft actions; verify sorting and live loading.
 - [x] Add shared NPC orbs to canvas and NPC pickers; verify placement and legacy data remain unchanged.
 - [x] Add Village door types, tools, canvas drawing, and lossless export/import.
