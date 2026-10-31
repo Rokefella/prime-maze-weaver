@@ -13,6 +13,8 @@ import { cellsEqual, eraForLevel, paintLayerCell, windowSideAt, worldAtLevel } f
 import { BuildingStylePicker } from "./BuildingStylePicker";
 import { PathStylePicker } from "./PathStylePicker";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { isBlueRoom, placeBlueDoor, removeBlueDoor } from "@/lib/maze/blueDoor";
 import { ageBuildings, buildingColors, isPaintableBuilding, nextVillage } from "@/lib/maze/buildings";
 import type { BuildingTone, BuildingAge } from "@/lib/maze/types";
 import { NpcOrbMini } from "@/lib/npcOrb";
@@ -350,6 +352,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
   const [terrainError,setTerrainError]=useState('');
   const [terrainKey,setTerrainKey]=useState<string|null>(null);
   const [tool, setTool] = useState<CellType>("WALL");
+  const [noBlueDoor, setNoBlueDoor] = useState(true);
   const [showNumbers, setShowNumbers] = useState(false);
   const [showPrimeLabels, setShowPrimeLabels] = useState(false);
   const [meta, setMeta] = useState<LevelMeta>(defaultMeta);
@@ -498,6 +501,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
     setWorldData(null);
     setWorldLayers(null);
     setCellsRaw(makeBlankCells(size, next));
+    setNoBlueDoor(true);
     setManuallyEdited(false);
     setPendingDoor(null);
     setPendingNpc(null);
@@ -766,6 +770,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       // Awaiting reentry pick for a pending door
       if (pendingDoor?.awaitingReentry) {
         const pd = pendingDoor;
+        if (mode === "maze" && noBlueDoor && isBlueRoom(pd.roomId)) return;
         setPendingDoor(null);
         setCells((prev) => {
           const next = prev.slice();
@@ -812,6 +817,15 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
           line: cur.type === "GHOST" ? cur.ghost?.line ?? "" : "",
           tone: cur.type === "GHOST" ? cur.ghost?.tone ?? "pale" : "pale",
         });
+        return;
+      }
+
+      // Rectangle fill
+      if (tool === "BLUE_DOOR" && mode === "maze") {
+        if (noBlueDoor) return;
+        setCells((prev) => placeBlueDoor(prev, idx));
+        setRectStart(null);
+        setManuallyEdited(true);
         return;
       }
 
@@ -913,7 +927,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       });
       setManuallyEdited(true);
     },
-    [terrainRows,terrainKey,tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells, buildingTone, buildingAge],
+    [noBlueDoor,terrainRows,terrainKey,tool, size, ulam, pendingDoor, mode, paintMode, rectStart, propName, propExitDest, propDoorColor, propDecorColor, npcRows, propNpcKey, dropTypeRows, propDropKey, propDropChance, cells, buildingTone, buildingAge],
   );
 
   const runGenerate = () => {
@@ -1087,6 +1101,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
     setWorldData(null);
     setWorldLayers(null);
     setCellsRaw(makeBlankCells(size, mode));
+    setNoBlueDoor(true);
     setMeta({ ...defaultMeta(), mode });
     setManuallyEdited(false);
     setPendingDoor(null);
@@ -1119,6 +1134,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
 
   const loadFromLibrary = (sl: SavedLevel) => {
     const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(sl.data);
+    setNoBlueDoor(sl.data.blueDoor == null);
     setSize(s);
     if (m.mode === "village" && w && wl) {
       setWorldData(w);
@@ -1239,6 +1255,7 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
       try {
         const data = JSON.parse(reader.result as string) as ExportedLevel;
         const { cells: c, meta: m, size: s, world: w, worldLayers: wl } = importLevel(data);
+        setNoBlueDoor(data.blueDoor == null);
         setSize(s);
         if (m.mode === "village" && w && wl) {
           setWorldData(w);
@@ -1870,10 +1887,11 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {tools.map((t) => (
-              <div key={t.type} className={mode === "village" && t.type === "BUILDING_L" ? "col-span-2 grid grid-cols-2 gap-1.5" : "contents"}>
+              <div key={t.type} className={(mode === "village" && t.type === "BUILDING_L") || (mode === "maze" && t.type === "BLUE_DOOR") ? "col-span-2 grid grid-cols-2 gap-1.5" : "contents"}>
               <button
                 key={t.type}
                 onClick={() => setTool(t.type)}
+                disabled={mode === "maze" && t.type === "BLUE_DOOR" && noBlueDoor}
                 className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition ${
                   tool === t.type
                     ? "border-[color:var(--accent-gold)] bg-[color:var(--accent-gold)]/10"
@@ -1887,6 +1905,21 @@ export function PraemBuilder({ onRegisterDraftOpener }: { onRegisterDraftOpener?
                 )}
                 <span>{t.label}</span>
               </button>
+              {mode === "maze" && t.type === "BLUE_DOOR" && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Switch aria-label="No blue door" checked={noBlueDoor} onCheckedChange={(checked) => {
+                    setNoBlueDoor(checked);
+                    setRectStart(null);
+                    if (checked) {
+                      setCells(removeBlueDoor);
+                      if (pendingDoor && isBlueRoom(pendingDoor.roomId)) setPendingDoor(null);
+                      if (tool === "BLUE_DOOR") setTool("CORRIDOR");
+                      setManuallyEdited(true);
+                    }
+                  }} />
+                  No blue door
+                </label>
+              )}
               {mode === "village" && t.type === "BUILDING_L" && <BuildingStylePicker tone={buildingTone} age={buildingAge} onTone={setBuildingTone} onAge={setBuildingAge} />}
               </div>
             ))}
